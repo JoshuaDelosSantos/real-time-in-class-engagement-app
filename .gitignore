@@ -165,4 +165,4 @@ coverage/
 logs/
 
 # Agent context docs
-agen.md
+/agent.md
