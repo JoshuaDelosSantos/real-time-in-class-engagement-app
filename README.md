@@ -7,26 +7,37 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 - **Operating mode**: Near-real-time updates are sufficient—sub-second accuracy is not required.
 - **Scale expectations**: ~20 concurrent users across multiple sessions.
 
-## Current Feature Set
-- Teacher starts a session and shares an auto-generated join code.
-- Students join via the code.
-- Students post questions and see the list update in real time.
-- Upvotes bubble the most relevant questions to the top of the teacher dashboard.
-- Teacher can mark questions as answered to close the loop.
+## Current Capabilities (2025-10-04)
+- Docker Compose stack for FastAPI (`swampninjas`) and PostgreSQL, with static frontend assets mounted into the API container.
+- `/health` endpoint returning an API heartbeat and serving `frontend/public/index.html` at the root with a "Press me" demo button.
+- `/db/ping` endpoint that exercises PostgreSQL via a repository/service layer and reports insert counts; covered by integration tests.
+- Project documentation including development workflow, dev journal, and layered directory READMEs.
 
-## Near-Term Roadmap
-- Add live polls, quick quizzes, and lightweight leaderboards.
-- Capture basic engagement analytics per session for teacher review.
-- Explore richer front-end interactivity with a modern JS framework once the core flows stabilise.
+## Roadmap Highlights
+- Implement session, question, and voting domain flows end-to-end.
+- Add WebSocket-based updates and richer frontend interactions.
+- Introduce database migrations and seeding scripts.
+- Layer on analytics, polls, and optional gamification once the core loop is stable.
 
 ## Architecture Snapshot
-- **Backend**: FastAPI serving REST endpoints and WebSocket channels.
-- **Persistence**: PostgreSQL for durable session/question data.
-- **Deployment target**: Dockerised services running on an Azure VM; optimised for low ops overhead.
+- **Backend**: FastAPI app with routers delegating to services and repositories; Pydantic schemas define API contracts.
+- **Persistence**: PostgreSQL (psycopg) with parameterised queries via repository helpers.
+- **Frontend**: Static HTML/CSS prototype served by FastAPI; future-ready for a JS framework.
+- **Infrastructure**: Dockerised services aimed at Azure VM deployment with minimal ops overhead.
 
 ## Repository Structure
-- `backend/` — FastAPI application, tests, and migrations.
-- `frontend/` — Web client sources and static assets.
-- `infra/` — Dockerfiles, Compose definitions, and deployment scripts.
-- `docs/` — Supplementary project documentation.
-- `scripts/` — Utility and automation helpers (e.g. seeding, linting).
+- `backend/`
+	- `app/`
+		- `api/routes/` — FastAPI routers grouped by feature surface.
+		- `services/` — Business logic orchestrating repositories.
+		- `repositories/` — Data-access helpers using psycopg SQL composition.
+		- `schemas/` — Shared Pydantic models.
+		- `db.py`, `settings.py`, `main.py` — core application wiring.
+	- `tests/` — Pytest suite (currently integration coverage for `/db/ping`).
+- `frontend/` — Static assets delivered at `/` with room for future SPA work.
+- `infra/` — Dockerfiles, Compose definitions, and environment templates.
+- `docs/` — Development guide, dev journal, and supporting documentation.
+- `scripts/` — Utility and automation helpers (placeholder for future additions).
+
+## Getting Started
+Follow the instructions in `docs/development.md` for local setup, testing, and deployment notes. Beginners can also consult the "Development Guide" section in that document to understand where new code should live.
