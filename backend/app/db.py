@@ -1,3 +1,7 @@
+"""
+Database connection helpers for the FastAPI service.
+"""
+
 from __future__ import annotations
 
 from contextlib import contextmanager

@@ -1,10 +1,14 @@
+"""
+FastAPI application configuration, routes, and static frontend serving.
+"""
+
 import os
 from pathlib import Path
 
 from fastapi import FastAPI  # type: ignore
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware # type: ignore
+from fastapi.responses import FileResponse, JSONResponse # type: ignore
+from fastapi.staticfiles import StaticFiles # type: ignore
 
 from .db import db_connection
 
