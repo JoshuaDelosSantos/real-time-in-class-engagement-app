@@ -14,7 +14,7 @@
 2. Copy the environment template:
    ```bash
    cd infra
-   cp .env.example .env
+   # insert .env file here
    # edit secrets if needed (POSTGRES_*, etc.)
    ```
 
