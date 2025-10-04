@@ -23,3 +23,10 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 - **Backend**: FastAPI serving REST endpoints and WebSocket channels.
 - **Persistence**: PostgreSQL for durable session/question data.
 - **Deployment target**: Dockerised services running on an Azure VM; optimised for low ops overhead.
+
+## Repository Structure
+- `backend/` — FastAPI application, tests, and migrations.
+- `frontend/` — Web client sources and static assets.
+- `infra/` — Dockerfiles, Compose definitions, and deployment scripts.
+- `docs/` — Supplementary project documentation.
+- `scripts/` — Utility and automation helpers (e.g. seeding, linting).
