@@ -19,6 +19,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application source (allowing docker compose to mount for development reloads).
 COPY backend/app ./app
 
+# Copy frontend static assets for serving via FastAPI.
+RUN mkdir -p /app/frontend/public
+COPY frontend/public /app/frontend/public
+
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
