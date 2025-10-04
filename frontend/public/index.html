@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClassEngage Health Check</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: #f7fafc;
+      }
+      button {
+        padding: 0.75rem 1.5rem;
+        font-size: 1.1rem;
+        border-radius: 0.5rem;
+        border: none;
+        background: #2563eb;
+        color: #fff;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #1d4ed8;
+      }
+      pre {
+        background: #0f172a;
+        color: #f8fafc;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        min-width: 280px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ClassEngage Health Check</h1>
+      <button id="ping">Press me</button>
+      <pre id="output">Click the button to fetch /health</pre>
+    </main>
+    <script>
+      const button = document.getElementById('ping');
+      const output = document.getElementById('output');
+
+      button.addEventListener('click', async () => {
+        output.textContent = 'Checking…';
+        try {
+          const response = await fetch('http://localhost:8000/health');
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const data = await response.json();
+          output.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          output.textContent = `Error: ${error.message}`;
+        }
+      });
+    </script>
+  </body>
+</html>
