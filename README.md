@@ -17,9 +17,9 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 ## Near-Term Roadmap
 - Add live polls, quick quizzes, and lightweight leaderboards.
 - Capture basic engagement analytics per session for teacher review.
-- Explore richer front-end interactivity with a modern JS framework once the core flows stabilize.
+- Explore richer front-end interactivity with a modern JS framework once the core flows stabilise.
 
 ## Architecture Snapshot
 - **Backend**: FastAPI serving REST endpoints and WebSocket channels.
 - **Persistence**: PostgreSQL for durable session/question data.
-- **Deployment target**: Dockerised services running on an Azure VM; optimized for low ops overhead.
+- **Deployment target**: Dockerised services running on an Azure VM; optimised for low ops overhead.
