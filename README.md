@@ -2,8 +2,8 @@
 ClassEngage is a lightweight, real-time classroom engagement app (inspired by Kahoot) that helps teachers surface the most relevant student questions during live sessions.
 
 ## Overview
-- **Audience**: One teacher hosts a session; 5–6 students join via a simple code.
-- **Primary loop**: Students submit questions, classmates upvote, and teachers resolve the top-voted items.
+- **Audience**: One user spins up a session as moderator; 5–6 peers join via a simple code.
+- **Primary loop**: Participants submit questions, classmates upvote, and the moderator resolves the top-voted items.
 - **Operating mode**: Near-real-time updates are sufficient—sub-second accuracy is not required.
 - **Scale expectations**: ~20 concurrent users across multiple sessions.
 
@@ -14,14 +14,14 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 - Project documentation including development workflow, dev journal, and layered directory READMEs.
 
 ## Roadmap Highlights
-- Implement session, question, and voting domain flows end-to-end.
+- Implement the session, participant, question, and voting flows end-to-end with the newly proposed schema.
 - Add WebSocket-based updates and richer frontend interactions.
 - Introduce database migrations and seeding scripts.
 - Layer on analytics, polls, and optional gamification once the core loop is stable.
 
 ## Architecture Snapshot
 - **Backend**: FastAPI app with routers delegating to services and repositories; Pydantic schemas define API contracts.
-- **Persistence**: PostgreSQL (psycopg) with parameterised queries via repository helpers.
+- **Persistence**: PostgreSQL (psycopg) with parameterised queries via repository helpers covering users, sessions, session participants, questions, and question votes.
 - **Frontend**: Static HTML/CSS prototype served by FastAPI; future-ready for a JS framework.
 - **Infrastructure**: Dockerised services aimed at Azure VM deployment with minimal ops overhead.
 
