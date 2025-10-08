@@ -41,3 +41,5 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 
 ## Getting Started
 Follow the instructions in [docs/development.md](/docs/development.md) for local setup, testing, and deployment notes. Beginners can also consult the "Development Guide" section in that document to understand where new code should live.
+
+-Jackson was here
