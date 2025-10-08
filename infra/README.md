@@ -12,3 +12,6 @@ Infrastructure assets for ClassEngage live here.
 - If you change `POSTGRES_DB` in `.env`, remove the `pg_data` volume (`docker compose down -v`) or create the database manually so the container boots cleanly.
 
 Keep secrets and environment-specific values out of version control.
+
+
+
