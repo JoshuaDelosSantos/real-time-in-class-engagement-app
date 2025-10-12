@@ -8,16 +8,17 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 - **Authentication**: Not required for MVP; users provide a display name when creating or joining a session.
 - **Scale expectations**: ~50 concurrent users across multiple sessions.
 
-## Current Capabilities (2025-10-04)
-- Docker Compose stack for FastAPI (`swampninjas`) and PostgreSQL, with static frontend assets mounted into the API container.
+## Current Capabilities (2025-10-12)
+- Docker Compose stack for FastAPI (`swampninjas`) and PostgreSQL with migrations automatically applied at container startup.
 - `/health` endpoint returning an API heartbeat and serving `frontend/public/index.html` at the root with a "Press me" demo button.
-- `/db/ping` endpoint that exercises PostgreSQL via a repository/service layer and reports insert counts; covered by integration tests.
+- `/db/ping` endpoint that exercises PostgreSQL via the repository/service layer and reports insert counts.
+- `POST /sessions` endpoint for creating classroom sessions, enforcing host limits, and returning a summary payload; covered by repository, service, and API tests.
 - Project documentation including development workflow, dev journal, and layered directory READMEs.
 
 ## Roadmap Highlights
-- Implement the session, participant, question, and voting flows end-to-end with the newly proposed schema.
+- Build participant join, question submission, and voting flows on top of the session schema.
 - Add WebSocket-based updates and richer frontend interactions.
-- Introduce database migrations and seeding scripts.
+- Introduce seed data and administrative tooling.
 - Layer on analytics, polls, and optional gamification once the core loop is stable.
 
 ## Architecture Snapshot
@@ -29,16 +30,16 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 ## Repository Structure
 - `backend/`
 	- `app/`
-		- `api/routes/` — FastAPI routers grouped by feature surface.
+		- `api/routes/` — FastAPI routers grouped by feature surface (health checks, session creation).
 		- `services/` — Business logic orchestrating repositories.
 		- `repositories/` — Data-access helpers using psycopg SQL composition.
 		- `schemas/` — Shared Pydantic models.
 		- `db.py`, `settings.py`, `main.py` — core application wiring.
-	- `tests/` — Pytest suite (currently integration coverage for `/db/ping`).
+	- `tests/` — Pytest suite covering database health checks plus repositories, services, and API flows for session creation.
 - `frontend/` — Static assets delivered at `/` with room for future SPA work.
 - `infra/` — Dockerfiles, Compose definitions, and environment templates.
 - `docs/` — Development guide, dev journal, and supporting documentation.
-- `scripts/` — Utility and automation helpers (placeholder for future additions).
+- `scripts/` — Utility and automation helpers (e.g., migration runner).
 
 ## Getting Started
 Follow the instructions in [docs/development.md](/docs/development.md) for local setup, testing, and deployment notes. Beginners can also consult the "Development Guide" section in that document to understand where new code should live.
