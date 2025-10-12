@@ -106,7 +106,7 @@ When a user creates a session they automatically become the host. The system gen
 - **Repositories**: implement dedicated repository modules (`users.py`, `sessions.py`, `session_participants.py`, `questions.py`, `question_votes.py`) in `backend/app/repositories/`, each with parameterised psycopg queries for CRUD operations and constraint enforcement.
 - **Services & Routers**: expose business flows (session creation, joining, question submission, like toggles, status updates) via services in `backend/app/services/` and route handlers in `backend/app/api/routes/` using Pydantic schemas from `backend/app/schemas/`.
 - **Testing**: extend `backend/tests/` with fixtures that create/truncate the new tables and integration tests covering the main flows.
-- **Configuration**: update `.env.example` and settings when we introduce new tunables like session code length or status enums exposed via config.
+- **Configuration**: update `.env` and settings when we introduce new tunables like session code length or status enums exposed via config.
 - **Join flow**: API services accept a session code from any user (no authentication required today) to attach them to the session context via the `session_participants` repository.
 - **Vote flow**: Services must keep `questions.likes` consistent with `question_votes` (via transactional updates today, and potentially database triggers later).
 
