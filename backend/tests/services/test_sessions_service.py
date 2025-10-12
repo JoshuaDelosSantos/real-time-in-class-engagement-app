@@ -67,3 +67,37 @@ def test_generate_unique_code_handles_collisions(monkeypatch) -> None:
 
     summary = service.create_session(title="New", host_display_name="Dr. Existing")
     assert summary.code == "UNIQUE1"
+
+
+def test_get_recent_sessions_returns_summaries_with_hosts() -> None:
+    service = SessionService(connection_provider=_connection_provider())
+
+    session1 = service.create_session(title="Math 101", host_display_name="Prof. Alpha")
+    session2 = service.create_session(title="History 202", host_display_name="Prof. Beta")
+
+    sessions = service.get_recent_sessions()
+
+    assert len(sessions) == 2
+    assert all(isinstance(s, SessionSummary) for s in sessions)
+    # Most recent first
+    assert sessions[0].id == session2.id
+    assert sessions[0].host.display_name == "Prof. Beta"
+    assert sessions[1].id == session1.id
+    assert sessions[1].host.display_name == "Prof. Alpha"
+
+
+def test_get_recent_sessions_respects_limit() -> None:
+    service = SessionService(connection_provider=_connection_provider())
+
+    for i in range(5):
+        service.create_session(title=f"Session {i}", host_display_name=f"Host {i}")
+
+    sessions = service.get_recent_sessions(limit=3)
+    assert len(sessions) == 3
+
+
+def test_get_recent_sessions_returns_empty_when_none_exist() -> None:
+    service = SessionService(connection_provider=_connection_provider())
+
+    sessions = service.get_recent_sessions()
+    assert sessions == []
