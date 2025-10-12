@@ -46,4 +46,4 @@ def test_create_session_requires_display_name() -> None:
         "/sessions",
         json={"title": "Nameless", "host_display_name": ""},
     )
-    assert response.status_code == 400
+    assert response.status_code == 422
