@@ -1,6 +1,6 @@
 # Data Model Overview
 
-This document defines the relational schema we intend to introduce. Treat it as the source of truth during review—once approved, the corresponding migrations, repositories, and services should mirror the structure described here.
+This document defines the relational schema implemented in migration `backend/migrations/0001_sessions.sql`. Treat it as the source of truth when updating migrations, repositories, or services.
 
 ## Entity Summary
 
