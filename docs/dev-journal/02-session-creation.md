@@ -58,6 +58,15 @@ Enable users (no authentication required) to create classroom sessions via a Fas
 - Root `README.md`: update “Current Capabilities” to list the session creation API.
 - `docs/data-model.md`: verify alignment (no structural changes expected, note service availability if useful).
 
+## Outcome (2025-10-12)
+
+- Migration runner (`scripts/apply_migrations.py`) now strips SQLAlchemy driver hints before connecting and is executed automatically on container startup via Docker Compose.
+- Schema `0001_sessions.sql` provisions users, sessions, session_participants, questions, and question_votes tables; tests rely on the migration runner to prepare the database.
+- Repository, service, and API layers for session creation are in place with comprehensive pytest coverage (repository, service, and endpoint tests).
+- Testing workflow runs through the `swampninjas` container; use `docker compose run --rm swampninjas pytest` or `docker compose exec swampninjas pytest`.
+- PYTHONPATH adjustments plus a `scripts/__init__.py` ensure the migration runner is importable inside the container-backed test suite.
+- Validation rules return HTTP 422 for empty host names; tests now assert the FastAPI/Pydantic default rather than mapping to a custom 400.
+
 ## Risks & Follow-ups
 
 - Need to ensure join-code generation handles collisions.
