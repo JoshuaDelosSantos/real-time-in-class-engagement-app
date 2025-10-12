@@ -6,7 +6,7 @@ Service modules orchestrate repositories and encapsulate business rules. They sh
 
 - `health.py` — returns a static health heartbeat message.
 - `database_health.py` — records db health pings via repositories.
-- `sessions.py` — coordinates session creation (host lookup/creation, business rule checks, code generation).
+- `sessions.py` — coordinates session creation (host lookup/creation, host session-limit enforcement, join-code generation with collision retries).
 
 Services should:
 - Accept plain inputs (validated by schemas at the API boundary).
