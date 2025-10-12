@@ -8,4 +8,10 @@ Integration and unit tests for the backend reside here.
 - `repositories/test_sessions_repository.py` ensures repository helpers interact with PostgreSQL as expected.
 - `conftest.py` runs migrations, cleans tables between tests, and exposes shared fixtures.
 
-Run the suite from the repository root with `pytest` (ensure `DATABASE_URL` is set) or via Docker using `docker compose exec swampninjas pytest` once the stack is up.
+## Running tests
+1. cd into the infra/ directory
+
+2. run docker exec command
+```
+docker compose exec swampninjas pytest
+```
