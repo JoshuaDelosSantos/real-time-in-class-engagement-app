@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status # type: ignore
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query, status # type: ignore
 
 from app.schemas.sessions import SessionCreate, SessionSummary
 from app.services import (
@@ -31,3 +33,17 @@ async def create_session(payload: SessionCreate) -> SessionSummary:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     except SessionCodeCollisionError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+
+@router.get("", response_model=list[SessionSummary])
+async def list_sessions(
+    limit: Annotated[int | None, Query(description="Maximum number of sessions to return", ge=1)] = 10,
+) -> list[SessionSummary]:
+    """Retrieve recent joinable sessions.
+    
+    Returns sessions ordered by creation time (most recent first).
+    Only includes draft and active sessions.
+    """
+
+    service = get_session_service()
+    return service.get_recent_sessions(limit=limit)
