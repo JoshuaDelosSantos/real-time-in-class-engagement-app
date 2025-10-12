@@ -13,9 +13,10 @@ Enable users (no authentication required) to create classroom sessions via a Fas
 
 ### Database & Migrations
 
-- `backend/migrations/0001_sessions.sql` (new):
+ - `backend/migrations/0001_sessions.sql` (new):
 	- Create `users`, `sessions`, and `session_participants` tables matching `docs/data-model.md`.
-	- Enforce: unique `sessions.code`, FK constraints, unique `(session_id, user_id)`, partial index limiting hosts to three active sessions.
+	- Enforce: unique `sessions.code`, FK constraints, unique `(session_id, user_id)`.
+	- Note: host session limits remain a service-layer concern; revisit database enforcement later if needed.
 - `scripts/apply_migrations.py` (new): lightweight runner that applies all files under `backend/migrations/` using psycopg.
 - `infra/docker-compose.yml`: add the migration runner to the API startup flow (e.g. compose command or entrypoint) so migrations execute automatically in local/dev environments.
 
