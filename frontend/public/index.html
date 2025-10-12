@@ -192,8 +192,8 @@
       // 2. Set textContent (automatically escapes special chars)
       // 3. Read back innerHTML to get the escaped string
       //
-      // Example: escapeHtml('<script>alert("XSS")</script>')
-      //   returns: '&lt;script&gt;alert("XSS")&lt;/script&gt;'
+      // Example: escapeHtml('<img src=x onerror=alert(1)>')
+      //   returns: '&lt;img src=x onerror=alert(1)&gt;'
 
       function escapeHtml(text) {
         const div = document.createElement('div');
