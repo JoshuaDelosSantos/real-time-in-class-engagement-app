@@ -13,9 +13,10 @@ API documentation for frontend contributors integrating with the session creatio
 
 ## Endpoints
 
-| Method | Path        | Description                         |
-| ------ | ----------- | ----------------------------------- |
-| POST   | `/sessions` | Create a new classroom session host |
+| Method | Path        | Description                                    |
+| ------ | ----------- | ---------------------------------------------- |
+| POST   | `/sessions` | Create a new classroom session                 |
+| GET    | `/sessions` | Retrieve recent joinable sessions              |
 
 ---
 
@@ -96,3 +97,95 @@ curl -X POST http://localhost:8000/sessions \
 ```
 
 Expect a `201` response with the JSON payload described above.
+
+---
+
+## GET /sessions
+
+Retrieve a list of recent joinable sessions ordered by creation time (most recent first).
+
+### Request
+
+- **Query Parameters**:
+  
+  | Parameter | Type | Required | Default | Notes                                      |
+  | --------- | ---- | -------- | ------- | ------------------------------------------ |
+  | `limit`   | int  | No       | 10      | Maximum number of sessions to return (≥1)  |
+
+### Successful Response
+
+- **Status**: `200 OK`
+- **Body (JSON)**:
+  ```json
+  [
+    {
+      "id": 124,
+      "code": "Y7PQRS",
+      "title": "History 202",
+      "status": "active",
+      "host": {
+        "id": 46,
+        "display_name": "Prof. Carter"
+      },
+      "created_at": "2025-10-12T08:15:30.123456Z"
+    },
+    {
+      "id": 123,
+      "code": "X4TZQF",
+      "title": "Literature Seminar",
+      "status": "draft",
+      "host": {
+        "id": 45,
+        "display_name": "Prof. Bloom"
+      },
+      "created_at": "2025-10-12T07:10:12.345678Z"
+    }
+  ]
+  ```
+
+#### Response Fields
+
+Each session object contains:
+
+| Field                | Type   | Notes                                         |
+| -------------------- | ------ | --------------------------------------------- |
+| `id`                 | int    | Session identifier                            |
+| `code`               | string | Six-character join code                       |
+| `title`              | string | Session title                                 |
+| `status`             | string | Either `draft` or `active` (ended sessions excluded) |
+| `host.id`            | int    | Host user identifier                          |
+| `host.display_name`  | string | Host display name                             |
+| `created_at`         | string | ISO 8601 timestamp in UTC                     |
+
+### Empty Result
+
+If no sessions are available, the endpoint returns an empty array:
+
+```json
+[]
+```
+
+### Error Responses
+
+| Status | When it Occurs              | Body Example                      |
+| ------ | --------------------------- | --------------------------------- |
+| 422    | Invalid limit parameter     | `{ "detail": [...] }`             |
+
+### Filtering
+
+- Only sessions with status `draft` or `active` are returned.
+- Ended sessions are excluded from the list.
+
+### Testing Notes
+
+You can exercise the endpoint locally with curl:
+
+```bash
+# Fetch default limit (10 sessions)
+curl http://localhost:8000/sessions
+
+# Fetch with custom limit
+curl http://localhost:8000/sessions?limit=5
+```
+
+Expect a `200` response with an array of session objects.
