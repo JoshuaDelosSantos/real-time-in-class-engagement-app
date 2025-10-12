@@ -16,7 +16,9 @@ from app.repositories import (
     create_user,
     get_session_by_code,
     get_user_by_display_name,
+    get_user_by_id,
     insert_session,
+    list_sessions,
 )
 from app.schemas.sessions import SessionSummary
 from app.schemas.users import UserSummary
@@ -115,6 +117,40 @@ class SessionService:
             if not get_session_by_code(conn, code):
                 return code
         raise SessionCodeCollisionError("Failed to generate a unique join code")
+
+    def get_recent_sessions(self, *, limit: int | None = None) -> list[SessionSummary]:
+        """Retrieve recent joinable sessions with host information.
+        
+        Returns sessions in descending order by creation time (most recent first).
+        Only includes draft and active sessions.
+        """
+
+        with self.connection_provider() as conn:
+            session_rows = list_sessions(conn, limit=limit)
+            
+            # Build unique set of host IDs and fetch host data
+            host_ids = {row["host_user_id"] for row in session_rows}
+            host_map = {}
+            for host_id in host_ids:
+                host = get_user_by_id(conn, host_id)
+                if host:
+                    host_map[host_id] = UserSummary(
+                        id=host["id"],
+                        display_name=host["display_name"]
+                    )
+            
+            # Map session rows to SessionSummary with host data
+            return [
+                SessionSummary(
+                    id=row["id"],
+                    code=row["code"],
+                    title=row["title"],
+                    status=row["status"],
+                    host=host_map[row["host_user_id"]],
+                    created_at=row["created_at"],
+                )
+                for row in session_rows
+            ]
 
 
 def _generate_join_code(length: int = DEFAULT_CODE_LENGTH) -> str:
