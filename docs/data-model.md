@@ -61,7 +61,7 @@ When a user creates a session they automatically become the host. The system gen
 - Author FK allows linking back to the submitting user when available.
 
 **Cardinality Constraints**
-- `users → sessions`: max three concurrent sessions per host. Enforced in services and, once migrations exist, via a partial unique index on `(host_user_id, status)` filtering on `status IN ('draft','active')`.
+- `users → sessions`: max three concurrent sessions per host. Enforced in services today; consider a database-level check/trigger if we need hard guarantees.
 - `users → questions`: max three non-answered questions per author per session. Enforced in services and, optionally, via a partial unique index on `(author_user_id, session_id, status)` with `status = 'pending'`.
 - `users → session_participants`: a user can appear at most once per session. Enforced with a unique index on `(session_id, user_id)`.
 - `users → question_votes`: a user can like a question only once. Enforced with a unique index on `(question_id, voter_user_id)`.
