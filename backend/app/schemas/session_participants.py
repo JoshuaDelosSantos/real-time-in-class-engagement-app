@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict # type: ignore
 from .users import UserSummary
 
 
-ParticipantRole = Literal["moderator", "participant"]
+ParticipantRole = Literal["host", "participant"]
 
 
 class SessionParticipantBase(BaseModel):
@@ -23,7 +23,8 @@ class SessionParticipantCreate(SessionParticipantBase):
     """Schema for creating a participant record.
 
     Intended for internal service use; route handlers gather `session_id`
-    from path params and `user_id` from authentication context.
+    from path params while services resolve `user_id` after creating or
+    locating a user record.
     """
 
     session_id: int
@@ -32,7 +33,7 @@ class SessionParticipantCreate(SessionParticipantBase):
 
 class SessionParticipantRead(SessionParticipantBase):
     """Schema for reading participant data from the database.
-    
+
     Includes full user details for roster displays.
     """
 
@@ -46,7 +47,7 @@ class SessionParticipantRead(SessionParticipantBase):
 
 class SessionParticipantSummary(BaseModel):
     """Lightweight participant summary for API responses.
-    
+
     Embeds user details to support participant lists without extra queries.
     """
 

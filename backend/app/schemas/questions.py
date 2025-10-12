@@ -64,8 +64,8 @@ class QuestionSummary(BaseModel):
 
 class QuestionUpdate(BaseModel):
     """Schema for updating question attributes.
-    
-    Primarily used by moderators to mark questions as answered.
+
+    Primarily used by hosts to mark questions as answered.
     """
 
     status: Optional[QuestionStatus] = None

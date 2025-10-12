@@ -2,9 +2,10 @@
 ClassEngage is a lightweight, real-time classroom engagement app (inspired by Kahoot) that helps teachers surface the most relevant student questions during live sessions.
 
 ## Overview
-- **Audience**: One user spins up a session as moderator; many peers join via a simple code.
-- **Primary loop**: Participants submit questions, classmates upvote, and the moderator resolves the top-voted items.
+- **Audience**: One user spins up a session as host; many peers join via a simple code.
+- **Primary loop**: Participants submit questions, classmates upvote, and the host resolves the top-voted items.
 - **Operating mode**: Near-real-time updates are sufficient—sub-second accuracy is not required.
+- **Authentication**: Not required for MVP; users provide a display name when creating or joining a session.
 - **Scale expectations**: ~50 concurrent users across multiple sessions.
 
 ## Current Capabilities (2025-10-04)

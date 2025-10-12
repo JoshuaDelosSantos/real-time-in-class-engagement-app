@@ -22,24 +22,24 @@ class SessionBase(BaseModel):
 class SessionCreate(SessionBase):
     """Schema for creating a new session.
 
-    The `moderator_display_name` field is provided by clients, while
-    the service layer is responsible for locating or creating the
+    The `host_display_name` field is provided by clients, while the
+    service layer is responsible for locating or creating the
     corresponding `users` row before persisting the session.
     """
 
-    moderator_display_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    host_display_name: Optional[str] = Field(None, min_length=1, max_length=100)
 
 
 class SessionRead(SessionBase):
     """Schema for reading complete session data from the database.
 
-    Includes the full moderator object for richer API responses.
+    Includes the full host object for richer API responses.
     """
 
     id: int
     code: str
     status: SessionStatus
-    moderator: "UserSummary"
+    host: "UserSummary"
     created_at: datetime
     started_at: Optional[datetime]
     ended_at: Optional[datetime]
@@ -49,15 +49,15 @@ class SessionRead(SessionBase):
 
 class SessionSummary(BaseModel):
     """Lightweight session summary for API responses.
-    
-    Includes moderator details to avoid additional requests.
+
+    Includes host details to avoid additional requests.
     """
 
     id: int
     code: str
     title: str
     status: SessionStatus
-    moderator: "UserSummary"
+    host: "UserSummary"
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
