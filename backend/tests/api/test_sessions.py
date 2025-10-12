@@ -47,3 +47,53 @@ def test_create_session_requires_display_name() -> None:
         json={"title": "Nameless", "host_display_name": ""},
     )
     assert response.status_code == 422
+
+
+def test_list_sessions_returns_recent_first() -> None:
+    # Create two sessions
+    response1 = client.post(
+        "/sessions",
+        json={"title": "First Session", "host_display_name": "Prof. Alpha"},
+    )
+    assert response1.status_code == 201
+    session1 = response1.json()
+
+    response2 = client.post(
+        "/sessions",
+        json={"title": "Second Session", "host_display_name": "Prof. Beta"},
+    )
+    assert response2.status_code == 201
+    session2 = response2.json()
+
+    # Fetch sessions
+    response = client.get("/sessions")
+    assert response.status_code == 200
+    body = response.json()
+
+    assert isinstance(body, list)
+    assert len(body) >= 2
+    
+    # Verify most recent appears first
+    ids = [s["id"] for s in body]
+    assert ids.index(session2["id"]) < ids.index(session1["id"])
+
+
+def test_list_sessions_respects_limit() -> None:
+    # Create multiple sessions
+    for i in range(5):
+        client.post(
+            "/sessions",
+            json={"title": f"Session {i}", "host_display_name": f"Host {i}"},
+        )
+
+    response = client.get("/sessions?limit=2")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 2
+
+
+def test_list_sessions_returns_empty_when_none_available() -> None:
+    response = client.get("/sessions")
+    assert response.status_code == 200
+    body = response.json()
+    assert body == []
