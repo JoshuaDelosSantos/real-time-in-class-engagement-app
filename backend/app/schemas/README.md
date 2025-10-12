@@ -25,15 +25,15 @@ Defines live classroom session schemas with lifecycle management.
 
 - `SessionBase`, `SessionCreate`, `SessionRead`, `SessionSummary`, `SessionUpdate`, `SessionJoin`
 - `SessionStatus` — Literal type: `"draft" | "active" | "ended"`
-- **Moderator Identity**: `moderator` nests `UserSummary` so clients receive display names in a single response.
-- **Creation Flow**: `SessionCreate` accepts `moderator_display_name`; the service layer resolves or creates the underlying `users` row.
+- **Host Identity**: `host` nests `UserSummary` so clients receive display names in a single response.
+- **Creation Flow**: `SessionCreate` accepts `host_display_name`; the service layer resolves or creates the underlying `users` row.
 
 ### `session_participants.py`
 Tracks which users have joined which sessions.
 
 - `SessionParticipantBase`, `SessionParticipantCreate`, `SessionParticipantRead`, `SessionParticipantSummary`
-- `ParticipantRole` — Literal type: `"moderator" | "participant"`
-- **Usage**: Created when users join sessions; moderator row inserted at session creation.
+- `ParticipantRole` — Literal type: `"host" | "participant"`
+- **Usage**: Created when users join sessions; host row inserted at session creation.
 - **Internal Note**: `SessionParticipantCreate` is service-internal; HTTP handlers derive `session_id` from path parameters and `user_id` from auth/session context.
 
 ### `questions.py`
@@ -68,7 +68,7 @@ from app.schemas import SessionCreate, SessionSummary, UserSummary
 # Request body
 session_in = SessionCreate(
     title="Introduction to Python",
-    moderator_display_name="Dr. Smith"
+    host_display_name="Dr. Smith"
 )
 
 # Response body
@@ -77,7 +77,7 @@ session_out = SessionSummary(
     code="ABC123",
     title="Introduction to Python",
     status="draft",
-    moderator=UserSummary(id=7, display_name="Dr. Smith"),
+    host=UserSummary(id=7, display_name="Dr. Smith"),
     created_at=datetime.now(UTC)
 )
 ```

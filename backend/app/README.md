@@ -14,24 +14,24 @@ Core application code for the ClassEngage FastAPI service lives here.
 
 **Session Creation**
 
-1. **Router** (`api/routes/sessions.py`): 
-   - Handles `POST /sessions` with a Pydantic schema (`SessionCreate`) validating `title` and optional `moderator_display_name`.
+1. **Router** (`api/routes/sessions.py`):
+   - Handles `POST /sessions` with a Pydantic schema (`SessionCreate`) validating `title` and optional `host_display_name`.
    - Calls `services.sessions.create_session()`.
 
 2. **Service** (`services/sessions.py`):
    - Generates a unique 6-character join code using `secrets.token_urlsafe()`.
-   - Validates that the moderator doesn't already have three active sessions (business rule).
-   - Calls `repositories.sessions.insert_session()` and `repositories.session_participants.insert_participant()` to persist the session and moderator record.
+   - Validates that the host doesn't already have three active sessions (business rule).
+   - Calls `repositories.sessions.insert_session()` and `repositories.session_participants.insert_participant()` to persist the session and host record.
    - Returns a `SessionSummary` schema.
 
 3. **Repository** (`repositories/sessions.py`):
    - Executes parameterised SQL using `psycopg.sql.SQL` composition:
-     ```python
-     cur.execute(
-         sql.SQL("INSERT INTO sessions (moderator_user_id, code, title, status) VALUES (%s, %s, %s, %s) RETURNING id"),
-         (moderator_id, code, title, 'draft')
-     )
-     ```
+    ```python
+    cur.execute(
+       sql.SQL("INSERT INTO sessions (host_user_id, code, title, status) VALUES (%s, %s, %s, %s) RETURNING id"),
+       (host_id, code, title, 'draft')
+    )
+    ```
    - Returns the inserted session ID.
 
 **Question Submission**
@@ -69,4 +69,3 @@ Core application code for the ClassEngage FastAPI service lives here.
    - Executes within a transaction to ensure `question_votes` insert and `questions.likes` update remain atomic.
 
 Modules should avoid heavy framework logic; keep business rules and integrations in the appropriate layer so concerns remain separated as the project grows.
-`

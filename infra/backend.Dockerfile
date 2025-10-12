@@ -4,7 +4,8 @@ FROM python:3.11-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+  PIP_DISABLE_PIP_VERSION_CHECK=1 \
+  PYTHONPATH="/app/backend:/app"
 
 WORKDIR /app/backend
 
