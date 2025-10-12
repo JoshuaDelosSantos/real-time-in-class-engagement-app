@@ -35,10 +35,21 @@ def apply_migration(conn: psycopg.Connection, file_path: Path) -> None:
         cur.execute(statements)
 
 
+def _normalize_dsn(dsn: str) -> str:
+    """Strip SQLAlchemy driver hints so psycopg can parse the DSN."""
+
+    if "+" in dsn.split("://", 1)[0]:
+        scheme, rest = dsn.split("://", 1)
+        scheme = scheme.split("+", 1)[0]
+        return f"{scheme}://{rest}"
+    return dsn
+
+
 def apply_all(*, dsn: str | None = None, quiet: bool = False) -> None:
     """Apply all migrations in lexical order."""
 
     database_dsn = dsn or get_database_url()
+    database_dsn = _normalize_dsn(database_dsn)
     files = load_sql_files()
     if not files:
         if not quiet:
