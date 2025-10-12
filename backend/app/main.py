@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles # type: ignore
 
 from app.api.routes.database_health import router as database_health_router
 from app.api.routes.health import router as health_router
+from app.api import sessions_router
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_FRONTEND_DIR = PROJECT_ROOT / "frontend" / "public"
@@ -32,6 +33,7 @@ if FRONTEND_DIR.exists():
 
 app.include_router(health_router)
 app.include_router(database_health_router)
+app.include_router(sessions_router)
 
 
 @app.get("/", include_in_schema=False)
