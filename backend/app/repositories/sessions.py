@@ -74,3 +74,28 @@ def get_session_by_id(conn: psycopg.Connection, session_id: int) -> Optional[dic
             (session_id,),
         )
         return cur.fetchone()
+
+
+def list_sessions(
+    conn: psycopg.Connection,
+    *,
+    limit: Optional[int] = None,
+) -> list[dict]:
+    """List joinable sessions ordered by creation time (most recent first).
+    
+    Filters to draft and active sessions only. Returns empty list if none found.
+    """
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        query = """
+            SELECT id, host_user_id, title, code, status, created_at, started_at, ended_at
+            FROM sessions
+            WHERE status IN ('draft', 'active')
+            ORDER BY created_at DESC
+        """
+        if limit is not None:
+            query += " LIMIT %s"
+            cur.execute(query, (limit,))
+        else:
+            cur.execute(query)
+        return cur.fetchall()
