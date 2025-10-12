@@ -57,3 +57,12 @@ Expose a simple way for users visiting the existing homepage (served under the h
 - Volume of sessions could grow; consider pagination in a follow-up if needed.
 - Exposing all sessions publicly might need filtering or status checks when more lifecycle states are introduced.
 - Frontend currently static; future SPA work might supersede this implementation, so keep JS lightweight and easy to remove.
+
+## Outcome (2025-10-12)
+
+- Added `list_sessions()` repository helper filtering to draft/active sessions, ordered by `created_at DESC` with optional limit parameter.
+- Implemented `get_recent_sessions()` service method that fetches sessions and enriches each with host `UserSummary` data.
+- Exposed `GET /sessions` endpoint accepting optional `limit` query param (default 10), returning array of `SessionSummary` objects.
+- Extended `frontend/public/index.html` with "Fetch Sessions" button that calls the new endpoint and renders session cards (title, code, host, status) or displays "No sessions available" when empty.
+- Comprehensive testing at repository, service, and API layers validates ordering, limit handling, status filtering, and empty results.
+- Documented the new `GET /sessions` endpoint in `docs/api/sessions.md` with request/response examples and filtering behaviour.
