@@ -2,9 +2,8 @@
 
 Utility helpers that streamline development and operations belong here.
 
-Common examples include:
-- Data seeding and fixture loaders.
-- Linting, formatting, or testing wrappers.
-- Release and deployment automation steps.
+Current scripts:
 
-Document parameters or prerequisites within each script as they are added.
+- `apply_migrations.py` — applies all SQL files under `backend/migrations/` using psycopg. It reads `DATABASE_URL`, normalises SQLAlchemy-style DSNs, and runs migrations in lexical order. The Docker Compose stack invokes this script automatically before the API starts.
+
+Add new scripts alongside documentation describing parameters or environment requirements.
