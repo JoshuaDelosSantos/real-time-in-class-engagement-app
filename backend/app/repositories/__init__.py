@@ -6,6 +6,7 @@ from .sessions import (
 	get_session_by_code,
 	get_session_by_id,
 	count_active_sessions_for_host,
+	list_sessions,
 )
 from .session_participants import add_participant, get_participant
 
@@ -17,6 +18,7 @@ __all__ = [
 	"get_session_by_code",
 	"get_session_by_id",
 	"count_active_sessions_for_host",
+	"list_sessions",
 	"add_participant",
 	"get_participant",
 ]
