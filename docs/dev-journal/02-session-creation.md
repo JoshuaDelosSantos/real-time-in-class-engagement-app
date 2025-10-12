@@ -16,7 +16,8 @@ Enable users (no authentication required) to create classroom sessions via a Fas
 - `backend/migrations/0001_sessions.sql` (new):
 	- Create `users`, `sessions`, and `session_participants` tables matching `docs/data-model.md`.
 	- Enforce: unique `sessions.code`, FK constraints, unique `(session_id, user_id)`, partial index limiting hosts to three active sessions.
-- `backend/scripts/apply_migrations.py` (or existing runner): ensure the new migration executes automatically.
+- `scripts/apply_migrations.py` (new): lightweight runner that applies all files under `backend/migrations/` using psycopg.
+- `infra/docker-compose.yml`: add the migration runner to the API startup flow (e.g. compose command or entrypoint) so migrations execute automatically in local/dev environments.
 
 ### Repository Layer
 
@@ -41,14 +42,14 @@ Enable users (no authentication required) to create classroom sessions via a Fas
 ### Schemas & Settings
 
 - `backend/app/schemas/sessions.py`: confirm the existing models cover new response fields (update only if requirements change).
-- `backend/app/settings.py` and `.env`: add configuration knobs (e.g. join-code length) if they emerge during implementation.
+- `backend/app/settings.py` and `.env`: add configuration knobs (e.g. join-code length) if they emerge during implementation; document changes in `docs/development.md`.
 
 ### Testing
 
 - `backend/tests/api/test_sessions.py`: integration test covering happy path for `POST /sessions`.
 - `backend/tests/services/test_sessions.py`: service-level tests for business rules (max three active sessions per host, duplicate codes).
 - `backend/tests/repositories/test_sessions.py`: repository tests validating inserts and partial index behaviour.
-- `backend/tests/conftest.py`: extend fixtures to provide clean DB state and sample users.
+- `backend/tests/conftest.py`: extend fixtures to provide clean DB state and sample users, mirroring the existing `reset_*` helpers used for database integration tests.
 
 ### Documentation & Comms
 
