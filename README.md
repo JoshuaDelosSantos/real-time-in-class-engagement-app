@@ -2,10 +2,10 @@
 ClassEngage is a lightweight, real-time classroom engagement app (inspired by Kahoot) that helps teachers surface the most relevant student questions during live sessions.
 
 ## Overview
-- **Audience**: One user spins up a session as moderator; numerous peers join via a simple code.
+- **Audience**: One user spins up a session as moderator; many peers join via a simple code.
 - **Primary loop**: Participants submit questions, classmates upvote, and the moderator resolves the top-voted items.
 - **Operating mode**: Near-real-time updates are sufficient—sub-second accuracy is not required.
-- **Scale expectations**: ~20 concurrent users across multiple sessions.
+- **Scale expectations**: ~50 concurrent users across multiple sessions.
 
 ## Current Capabilities (2025-10-04)
 - Docker Compose stack for FastAPI (`swampninjas`) and PostgreSQL, with static frontend assets mounted into the API container.
@@ -41,6 +41,3 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 
 ## Getting Started
 Follow the instructions in [docs/development.md](/docs/development.md) for local setup, testing, and deployment notes. Beginners can also consult the "Development Guide" section in that document to understand where new code should live.
-
--Jackson was here
-## Seth test commit
