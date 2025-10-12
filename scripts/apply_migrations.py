@@ -35,20 +35,29 @@ def apply_migration(conn: psycopg.Connection, file_path: Path) -> None:
         cur.execute(statements)
 
 
-def main() -> None:
-    dsn = get_database_url()
+def apply_all(*, dsn: str | None = None, quiet: bool = False) -> None:
+    """Apply all migrations in lexical order."""
+
+    database_dsn = dsn or get_database_url()
     files = load_sql_files()
     if not files:
-        print("No migrations to apply.")
+        if not quiet:
+            print("No migrations to apply.")
         return
 
-    print(f"Applying {len(files)} migration(s)...")
-    with psycopg.connect(dsn, autocommit=True) as conn:
+    if not quiet:
+        print(f"Applying {len(files)} migration(s)...")
+    with psycopg.connect(database_dsn, autocommit=True) as conn:
         for file_path in files:
-            print(f" -> {file_path.name}")
+            if not quiet:
+                print(f" -> {file_path.name}")
             apply_migration(conn, file_path)
+    if not quiet:
+        print("Migrations applied successfully.")
 
-    print("Migrations applied successfully.")
+
+def main() -> None:
+    apply_all()
 
 
 if __name__ == "__main__":
