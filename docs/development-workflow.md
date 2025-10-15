@@ -16,7 +16,6 @@ Quick reference for contributors.
 2. Pull the latest changes and remote refs:
 	```bash
 	git fetch --all
-	git pull --rebase origin main
 	```
 3. Start Docker Desktop (WSL2 backend on Windows) and make sure your `.env` is up to date (`infra/.env`).
 4. Rebuild/restart containers if dependencies changed:
@@ -46,10 +45,6 @@ Quick reference for contributors.
 - **Scripts** (`scripts/`): helper automation (seeding, linting) belongs here; include usage instructions in `scripts/README.md`.
 
 ## 5. Test & Validate
-- Run backend tests before committing:
-  ```bash
-  docker compose exec swampninjas pytest
-  ```
 - Manually verify endpoints or UI changes when applicable (e.g., `http://localhost:8000/`).
 - When adjusting infrastructure, document reproduction steps and verify containers restart cleanly.
 
