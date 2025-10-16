@@ -1,31 +1,59 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ClassEngage Health Check</title>
-    <style>
-      body {
-        font-family: system-ui, sans-serif;
-        display: flex;
-        flex-direction: column;
-        gap: 2rem;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
+<!DOCTYPE html><!DOCTYPE html>
+
+<html lang="en"><html lang="en">
+
+  <head>  <head>
+
+    <meta charset="UTF-8" />    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>ClassEngage Health Check</title>    <title>ClassEngage Health Check</title>
+
+    <link rel="stylesheet" href="/css/styles.css" />    <style>
+
+  </head>      body {
+
+  <body>        font-family: system-ui, sans-serif;
+
+    <section>        display: flex;
+
+      <h1>ClassEngage Health Check</h1>        flex-direction: column;
+
+      <h2>API Status</h2>        gap: 2rem;
+
+      <button id="ping">Check Health</button>        align-items: center;
+
+      <pre id="output">Click the button to fetch /health</pre>        justify-content: center;
+
+    </section>        min-height: 100vh;
+
         background: #f7fafc;
-        padding: 1rem;
-      }
-      section {
-        background: #fff;
-        padding: 2rem;
+
+    <section>        padding: 1rem;
+
+      <h2>Available Sessions</h2>      }
+
+      <button id="fetch-sessions">Fetch Sessions</button>      section {
+
+      <div id="sessions-output">Click the button to load sessions</div>        background: #fff;
+
+    </section>        padding: 2rem;
+
         border-radius: 0.5rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        max-width: 600px;
-        width: 100%;
-      }
-      h1 {
-        margin-top: 0;
+
+    <!-- Load scripts in dependency order: utils → api → ui -->        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+    <script src="/js/utils.js"></script>        max-width: 600px;
+
+    <script src="/js/api.js"></script>        width: 100%;
+
+    <script src="/js/ui.js"></script>      }
+
+  </body>      h1 {
+
+</html>        margin-top: 0;
+
       }
       h2 {
         font-size: 1.25rem;
