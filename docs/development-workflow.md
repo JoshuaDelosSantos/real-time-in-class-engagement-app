@@ -6,6 +6,8 @@ Quick reference for contributors.
 - Read `README.md` for the product snapshot and stack overview.
 - Scan `docs/development.md` for local setup, conventions, and directory responsibilities.
 - Review `docs/data-model.md` to understand the proposed database schema.
+- Check `docs/frontend-guide.md` for frontend development patterns and best practices.
+- Review `docs/api/` subdirectory for API endpoint documentation.
 - Check `docs/wslconfig.md` (Windows only) if Docker/WSL memory usage is an issue.
 
 ## 2. Sync Your Local Environment
@@ -39,7 +41,11 @@ Quick reference for contributors.
 - **Backend** (`backend/app/`):
   - Routes in `api/routes/`, services in `services/`, repositories in `repositories/`, schemas in `schemas/`.
   - Update `backend/tests/` with integration or unit coverage for new behaviour.
-- **Frontend** (`frontend/`): static assets live in `public/`. If you add tooling, document it in `frontend/README.md` and use `src/` for new source files.
+- **Frontend** (`frontend/`): 
+  - HTML in `public/index.html`, styles in `public/css/`, JavaScript in `public/js/`.
+  - Keep JavaScript modular: utils, API calls, and UI logic separated.
+  - Refer to `docs/frontend-guide.md` for patterns and best practices.
+- **API Documentation** (`docs/api/`): update endpoint documentation when adding or modifying routes. Frontend contributors rely on these docs.
 - **Infrastructure** (`infra/`): store Docker, Compose, env templates, and deployment scripts here. Explain non-obvious tweaks in comments or `infra/README.md`.
 - **Documentation** (`docs/`): add or update markdown guides when behaviour or setup changes. New directories should receive a concise `README.md`.
 - **Scripts** (`scripts/`): helper automation (seeding, linting) belongs here; include usage instructions in `scripts/README.md`.
