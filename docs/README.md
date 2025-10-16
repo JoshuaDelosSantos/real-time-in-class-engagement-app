@@ -7,5 +7,6 @@ Suggested contents include:
 - Onboarding guides and operational runbooks.
 - Meeting summaries and research findings.
 - API references for frontend contributors [api](/docs/api/).
+- Frontend development guide [frontend-guide.md](/docs/frontend-guide.md).
 
 Organise subfolders as documentation grows.
