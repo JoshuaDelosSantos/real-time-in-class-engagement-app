@@ -73,8 +73,11 @@ class SessionUpdate(BaseModel):
     status: Optional[SessionStatus] = None
 
 
-class SessionJoin(BaseModel):
-    """Schema for joining a session via code."""
+class SessionJoinRequest(BaseModel):
+    """Request schema for joining a session.
+    
+    The session code is provided in the URL path parameter,
+    so this schema only contains the display name for the participant.
+    """
 
-    code: str = Field(..., min_length=1, max_length=10)
     display_name: str = Field(..., min_length=1, max_length=100)
