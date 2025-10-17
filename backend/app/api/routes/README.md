@@ -6,4 +6,9 @@ Router modules live here. Keep logic focused on HTTP concerns and call into serv
 
 - `health.py` — `/health` heartbeat endpoint.
 - `database_health.py` — `/db/ping` database exercise endpoint.
-- `sessions.py` — `POST /sessions` endpoint for creating classroom sessions, mapping service exceptions to 400/409 responses and returning `SessionSummary` payloads.
+- `sessions.py` — Session management endpoints:
+  - `POST /sessions` — Create new classroom sessions
+  - `GET /sessions` — List recent joinable sessions
+  - `POST /sessions/{code}/join` — Join a session as participant
+  
+  Maps service exceptions to HTTP status codes (400/404/409/422) and returns `SessionSummary` payloads.

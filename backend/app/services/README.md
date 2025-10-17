@@ -6,7 +6,12 @@ Service modules orchestrate repositories and encapsulate business rules. They sh
 
 - `health.py` — returns a static health heartbeat message.
 - `database_health.py` — records db health pings via repositories.
-- `sessions.py` — coordinates session creation (host lookup/creation, host session-limit enforcement, join-code generation with collision retries).
+- `sessions.py` — orchestrates session operations:
+  - Session creation (host lookup/creation, session-limit enforcement, join-code generation with collision retries)
+  - Session listing (fetching recent joinable sessions with host details)
+  - Session joining (user lookup/creation, role protection, participant record management)
+  
+  Raises domain exceptions: `SessionNotFoundError`, `SessionNotJoinableError`, `InvalidDisplayNameError`.
 
 Services should:
 - Accept plain inputs (validated by schemas at the API boundary).

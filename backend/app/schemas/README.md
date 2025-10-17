@@ -23,10 +23,11 @@ Defines user identity and profile schemas.
 ### `sessions.py`
 Defines live classroom session schemas with lifecycle management.
 
-- `SessionBase`, `SessionCreate`, `SessionRead`, `SessionSummary`, `SessionUpdate`, `SessionJoin`
+- `SessionBase`, `SessionCreate`, `SessionRead`, `SessionSummary`, `SessionUpdate`, `SessionJoinRequest`
 - `SessionStatus` — Literal type: `"draft" | "active" | "ended"`
 - **Host Identity**: `host` nests `UserSummary` so clients receive display names in a single response.
 - **Creation Flow**: `SessionCreate` accepts `host_display_name`; the service layer resolves or creates the underlying `users` row.
+- **Join Flow**: `SessionJoinRequest` accepts only `display_name` (session code comes from URL path); service resolves or creates user and adds participant record with role protection.
 
 ### `session_participants.py`
 Tracks which users have joined which sessions.
