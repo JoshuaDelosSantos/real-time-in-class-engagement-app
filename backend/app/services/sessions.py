@@ -45,6 +45,14 @@ class InvalidHostDisplayNameError(SessionCreationError):
     """Raised when the provided host display name is empty."""
 
 
+class SessionNotFoundError(RuntimeError):
+    """Raised when a session code doesn't match any session."""
+
+
+class SessionNotJoinableError(RuntimeError):
+    """Raised when attempting to join a session that has ended."""
+
+
 class ConnectionProvider(Protocol):
     """Protocol for objects that provide psycopg connections."""
 
@@ -67,7 +75,7 @@ class SessionService:
         clean_display_name = host_display_name.strip()
 
         with self.connection_provider() as conn:
-            host = self._get_or_create_host(conn, clean_display_name)
+            host = self._get_or_create_user(conn, clean_display_name)
 
             if self._host_has_reached_limit(conn, host_id=host["id"]):
                 raise HostSessionLimitError(
@@ -99,7 +107,8 @@ class SessionService:
         )
 
     @staticmethod
-    def _get_or_create_host(conn: psycopg.Connection, display_name: str) -> dict:
+    def _get_or_create_user(conn: psycopg.Connection, display_name: str) -> dict:
+        """Get existing user by display name or create a new one."""
         existing = get_user_by_display_name(conn, display_name)
         if existing:
             return existing
@@ -151,6 +160,69 @@ class SessionService:
                 )
                 for row in session_rows
             ]
+
+    def join_session(self, *, code: str, display_name: str) -> SessionSummary:
+        """Join a session using a code and display name.
+        
+        Creates a participant record linking the user to the session.
+        Returns session details for the participant.
+        
+        Args:
+            code: The session join code
+            display_name: The participant's display name
+            
+        Returns:
+            SessionSummary with session and host details
+            
+        Raises:
+            InvalidHostDisplayNameError: Display name is empty or whitespace-only
+            SessionNotFoundError: Session code doesn't exist
+            SessionNotJoinableError: Session status is 'ended'
+        """
+        # Validate display name
+        if not display_name or not display_name.strip():
+            raise InvalidHostDisplayNameError("Display name is required")
+        
+        clean_display_name = display_name.strip()
+        
+        with self.connection_provider() as conn:
+            # Look up session by code
+            session = get_session_by_code(conn, code)
+            if not session:
+                raise SessionNotFoundError("Session not found")
+            
+            # Verify session is joinable (not ended)
+            if session["status"] == "ended":
+                raise SessionNotJoinableError("Session has ended and is no longer joinable")
+            
+            # Get or create user
+            user = self._get_or_create_user(conn, clean_display_name)
+            
+            # CRITICAL: Determine role - preserve host role if user is the session host
+            if user["id"] == session["host_user_id"]:
+                role = "host"
+            else:
+                role = "participant"
+            
+            # Add participant record (idempotent due to ON CONFLICT)
+            add_participant(
+                conn,
+                session_id=session["id"],
+                user_id=user["id"],
+                role=role,
+            )
+            
+            # Fetch host details for response
+            host = get_user_by_id(conn, session["host_user_id"])
+        
+        return SessionSummary(
+            id=session["id"],
+            code=session["code"],
+            title=session["title"],
+            status=session["status"],
+            host=UserSummary(id=host["id"], display_name=host["display_name"]),
+            created_at=session["created_at"],
+        )
 
 
 def _generate_join_code(length: int = DEFAULT_CODE_LENGTH) -> str:
