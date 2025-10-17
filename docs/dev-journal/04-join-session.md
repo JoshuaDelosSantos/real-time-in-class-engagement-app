@@ -13,54 +13,62 @@ Implement backend API endpoint `POST /sessions/{code}/join` that validates a ses
    - `users` table for user records
    - `sessions` table with join codes
 
-2. **Repository Layer** ✓ (Mostly Complete)
-   - `add_participant()` — inserts/updates participant records
-   - `get_participant()` — retrieves participant by session/user
+2. **Repository Layer** ✓ (Complete, Needs Test Coverage)
+   - `add_participant()` — inserts/updates participant records (existing, untested)
+   - `get_participant()` — retrieves participant by session/user (existing, untested)
    - `get_user_by_display_name()` — finds existing users
    - `create_user()` — creates new user records
    - `get_session_by_code()` — validates session codes
 
-3. **Schemas** ✓
-   - `SessionJoin` with code and display_name fields
-   - `SessionSummary` for response payloads
-   - `ParticipantRole` enum
+3. **Schemas** ⚠️ (Partial Conflict)
+   - `SessionJoin` exists but has both `code` and `display_name` (not used anywhere)
+   - `SessionSummary` for response payloads ✓
+   - `ParticipantRole` enum ✓
 
 ### What's Missing
 
 1. **Service Layer** ✗
    - No `join_session()` orchestration method
-   - Missing business logic for validation and coordination
+   - Helper `_get_or_create_host()` is semantically wrong for participants (should be `_get_or_create_user()`)
 
 2. **API Endpoint** ✗
    - No `POST /sessions/{code}/join` route
 
-3. **Schemas** ✗
-   - Need `SessionJoinRequest` with only `display_name` field
+3. **Schemas** ⚠️
+   - Need to replace `SessionJoin` with `SessionJoinRequest` (display_name only)
+   - Current `SessionJoin` has code duplication (path + body) which violates RESTful convention
 
 4. **Testing** ✗
-   - No coverage for join flow at any layer
+   - No test coverage for `add_participant()` and `get_participant()` repository functions
+   - No coverage for join flow at service/API layers
 
 5. **Documentation** ✗
-   - API docs incomplete
+   - API docs incomplete (no join endpoint documented)
 
 ## Implementation Approach
 
 ### Service Layer (`backend/app/services/sessions.py`)
 
-Add `join_session()` method to `SessionService`:
+**Refactor existing code**:
+- Rename `_get_or_create_host()` → `_get_or_create_user()` for semantic accuracy
+- Update `create_session()` to use renamed helper
+
+**Add `join_session()` method to `SessionService`**:
 
 **Responsibilities**:
 - Validate display name (non-empty, trim whitespace)
 - Look up session by code
-- Verify session exists and is joinable (draft/active status only)
+- Verify session exists (raise `SessionNotFoundError` if not)
+- Verify session is joinable: `status IN ('draft', 'active')` (raise `SessionNotJoinableError` if ended)
 - Get or create user record by display name
-- Create participant record with role "participant"
+- **Role protection**: If user is session host, maintain role="host"; otherwise role="participant"
+- Create participant record with appropriate role
 - Fetch host details and return complete `SessionSummary`
 
 **New Exceptions**:
-- `SessionNotFoundError` — Invalid session code
-- `SessionNotJoinableError` — Session status is "ended"
-- Reuse `InvalidDisplayNameError` for empty/whitespace-only names
+- `SessionNotFoundError(RuntimeError)` — "Session not found"
+- `SessionNotJoinableError(RuntimeError)` — "Session has ended and is no longer joinable"
+- Reuse `InvalidDisplayNameError` — "Display name is required"
 
 ### API Layer (`backend/app/api/routes/sessions.py`)
 
@@ -68,179 +76,238 @@ Add endpoint: `POST /sessions/{code}/join`
 
 **Request**:
 - Path param: `code` (string)
-- Body: `display_name` field only
+- Body: `SessionJoinRequest` with `display_name` field only
 
-**Response**:
-- `200 OK` — Returns `SessionSummary`
-- `400` — Invalid display name
-- `404` — Session not found
-- `409` — Session not joinable (ended)
+**Response Codes**:
+- `200 OK` — Returns `SessionSummary` (successful join)
+- `400 BAD_REQUEST` — Whitespace-only display name (service validation)
+- `404 NOT_FOUND` — Session not found
+- `409 CONFLICT` — Session not joinable (ended status)
+- `422 UNPROCESSABLE_ENTITY` — Empty/null display name (Pydantic validation)
+
+**Error Handling**:
+```python
+try:
+    return service.join_session(code=code, display_name=payload.display_name)
+except InvalidDisplayNameError as exc:
+    raise HTTPException(status_code=400, detail=str(exc))
+except SessionNotFoundError as exc:
+    raise HTTPException(status_code=404, detail=str(exc))
+except SessionNotJoinableError as exc:
+    raise HTTPException(status_code=409, detail=str(exc))
+```
 
 ### Schema (`backend/app/schemas/sessions.py`)
 
-Create `SessionJoinRequest` with only `display_name` field since code comes from path parameter (avoids duplication).
-
-### Frontend (`frontend/public/`)
-
-### Frontend — Join Form (`frontend/public/`)
-
-**Landing Page Updates** (in `index.html`):
-- New section "Join Session"
-- Form with session code input, display name input, submit button
-- Result container for success/error messages
-
-**JavaScript** (in `js/api.js` and `js/ui.js`):
-- `joinSession(code, displayName)` API function
-- Form validation and submit handler
-- Success/error rendering
-
-**Join Flow**:
-1. User enters code and name on landing page
-2. Client validates non-empty inputs
-3. POST to `/api/sessions/{code}/join`
-4. On success: redirect to session page with session data
-5. On error: display error message inline
-
-### Frontend — Session Page (`frontend/public/session.html`)
-
-**New Page Required**: Dedicated session view for participants and hosts.
-
-**Core Elements**:
-- Session header (title, code, status badge, host name)
-- Role indicator (host vs participant)
-- Participant roster (optional, future enhancement)
-- Questions section (placeholder for now, future: submit/vote/view questions)
-- Leave/end session button
-
-**JavaScript** (`js/session.js`):
-- Parse session data from URL params or sessionStorage
-- Render session details
-- Set up WebSocket connection (future)
-- Handle question submission (future)
-- Handle voting (future)
-
-**Routing Strategy**:
-- Option A: `session.html?code=ABC123` with client-side fetch
-- Option B: Store session in sessionStorage, redirect to `session.html`
-- **Decision**: Use sessionStorage to avoid exposing code in URL; pass session object from join response
-
-**UX Flow**:
-1. After successful join, store session details in sessionStorage
-2. Redirect to `session.html`
-3. Page loads session from storage and displays details
-4. If no session in storage, redirect back to landing page with error
+**Replace** `SessionJoin` with `SessionJoinRequest`:
+- Remove `SessionJoin` class (unused, has code duplication issue)
+- Add `SessionJoinRequest` with only `display_name: str` field (min_length=1, max_length=100)
+- Update `__init__.py` exports to remove `SessionJoin`, add `SessionJoinRequest`
 
 ### Testing Strategy
 
-**Repository Tests** (`test_session_participants.py`):
-- Test existing `add_participant()` and `get_participant()` helpers
-- Verify ON CONFLICT behaviour (idempotency)
-- Check foreign key constraints
+**Repository Tests** (`backend/tests/repositories/test_session_participants.py` - create new file):
+- **Note**: `add_participant()` and `get_participant()` already exist but lack test coverage
+- Add participant successfully (basic insert)
+- **ON CONFLICT behavior**: Adding same user to same session updates role (idempotent)
+- Get participant returns correct record
+- Get non-existent participant returns None
+- Foreign key constraints enforced (invalid session_id/user_id raises error)
 
-**Service Tests** (`test_sessions_service.py`):
-- Join with new user (creates user + participant)
-- Join with existing user (reuses user)
-- Join same session twice (idempotent)
-- Join draft/active sessions (succeeds)
-- Join ended session (raises error)
-- Invalid code (raises error)
-- Empty/whitespace display name (raises error)
+**Service Tests** (`backend/tests/services/test_sessions_service.py` - extend existing):
+- Join session with new user (creates user + participant)
+- Join session with existing user (reuses user, creates participant)
+- Join same session twice with same user (idempotent, returns session)
+- Join draft session succeeds
+- Join active session succeeds
+- **Join ended session raises `SessionNotJoinableError`** (use direct SQL to set status='ended')
+- Join with invalid code raises `SessionNotFoundError`
+- Join with whitespace-only display name raises `InvalidDisplayNameError`
+- **Host joining own session maintains role="host"** (critical: prevents role downgrade)
+- Non-host joining session gets role="participant"
+- Response includes correct session and host details
 
-**API Tests** (`test_sessions.py`):
+**API Tests** (`backend/tests/api/test_sessions.py` - extend existing):
 - Valid join returns 200 + SessionSummary
 - Invalid code returns 404
 - Ended session returns 409
-- Empty display name returns 400
-- Response includes session + host details
+- Whitespace-only display name returns 400 (service validation)
+- **Empty/null display name returns 422** (Pydantic validation)
+- Response includes session title, code, status, and host info
 
-**Integration Tests** (`test_join_flow.py`):
-- End-to-end: Create session → Join as participant → Verify DB record
-- Multiple participants join same session
-- Host joining own session (should work seamlessly)
+**Integration Tests** (`backend/tests/integration/test_join_flow.py` - create new file):
+- End-to-end: Create session via API → Join as participant via API → Query DB to verify participant record
+- Multiple participants join same session (verify all stored correctly)
+- Host joining own session via API maintains host role
+- Idempotent joins: same user joins twice, DB has single participant record
 
 ## Implementation Plan
 
-### Phase 1: Service Layer
-1. Add new exception classes (`SessionNotFoundError`, `SessionNotJoinableError`)
-2. Implement `join_session()` method in `SessionService`
-3. Update service exports in `__init__.py`
+### Phase 1: Refactor & Service Layer
+1. **Refactor**: Rename `_get_or_create_host()` → `_get_or_create_user()` in SessionService
+2. Update `create_session()` to use renamed helper
+3. Add new exception classes (`SessionNotFoundError`, `SessionNotJoinableError`)
+4. Implement `join_session()` method with role protection logic
+5. Update service exports in `__init__.py`
 
-### Phase 2: Schema & API
-4. Create `SessionJoinRequest` schema (display_name only)
-5. Add `POST /sessions/{code}/join` endpoint
-6. Wire up error handling for all exception types
+### Phase 2: Schema Updates
+6. **Replace** `SessionJoin` with `SessionJoinRequest` (display_name only)
+7. Update `backend/app/schemas/__init__.py` exports
+8. Verify no code references old `SessionJoin` (should be none)
 
-### Phase 3: Testing
-7. Write repository tests for `add_participant()` and `get_participant()`
-8. Write service tests for `join_session()` covering all edge cases:
-   - Join with new user
-   - Join with existing user
-   - Idempotent joins (same user, same session)
-   - Join draft/active sessions (succeeds)
-   - Join ended session (raises error)
-   - Invalid code (raises error)
-   - Empty/whitespace display name (raises error)
-9. Write API tests for join endpoint:
-   - Valid join returns 200 + SessionSummary
-   - Invalid code returns 404
-   - Ended session returns 409
-   - Empty display name returns 400
-   - Response includes session + host details
-10. Add integration test for complete join flow
+### Phase 3: API Layer
+9. Add `POST /sessions/{code}/join` endpoint in routes
+10. Wire up error handling for all exception types (400, 404, 409, 422)
 
-### Phase 4: Documentation
-11. Update `docs/api/sessions.md` with join endpoint spec
-12. Record implementation outcomes in this dev journal
+### Phase 4: Testing - Repository Layer
+11. Create `backend/tests/repositories/test_session_participants.py`
+12. Write tests for existing `add_participant()` function:
+    - Basic insert success
+    - ON CONFLICT behavior (idempotency)
+    - Foreign key constraint validation
+13. Write tests for existing `get_participant()` function:
+    - Successful retrieval
+    - Non-existent participant returns None
+
+### Phase 5: Testing - Service Layer
+14. Extend `backend/tests/services/test_sessions_service.py`
+15. Add ~10 test cases for `join_session()`:
+    - New user join
+    - Existing user join
+    - Idempotent join (same user twice)
+    - Draft/active session success
+    - **Ended session rejection** (use SQL UPDATE to set status='ended')
+    - Invalid code rejection
+    - Whitespace display name rejection
+    - **Host role protection** (host joining maintains role)
+    - **Participant role assignment** (non-host gets role="participant")
+    - Response validation
+
+### Phase 6: Testing - API Layer
+16. Extend `backend/tests/api/test_sessions.py`
+17. Add ~6 test cases for join endpoint:
+    - Valid join returns 200 + SessionSummary
+    - Invalid code returns 404
+    - Ended session returns 409
+    - Whitespace display name returns 400
+    - **Empty/null display name returns 422**
+    - Response structure validation
+
+### Phase 7: Testing - Integration
+18. Create `backend/tests/integration/test_join_flow.py`
+19. Add end-to-end tests:
+    - Create session → Join as participant → Verify DB state
+    - Multiple participants join same session
+    - Host joins own session → Verify role="host" maintained
+    - Idempotent joins → Verify single DB record
+
+### Phase 8: Documentation
+20. Update `docs/api/sessions.md` with join endpoint specification
+21. Document error codes, request/response examples, edge cases
+22. Record implementation outcomes in this dev journal
 
 ## Key Decisions
 
-### 1. Schema Design
-**Decision**: Create `SessionJoinRequest` schema with only `display_name` field.  
-**Rationale**: Session code in URL path; no need to duplicate in request body (RESTful convention).
+### 1. Schema Design - Replace, Don't Extend
+**Decision**: Replace existing `SessionJoin` with `SessionJoinRequest` (display_name only).  
+**Rationale**: Current `SessionJoin` duplicates code in path and body, violating RESTful convention. It's unused in codebase, so safe to replace. Resource identifiers belong in URL path, not request body.
 
-### 2. Idempotency
-**Decision**: Joining the same session twice returns success without error.  
-**Rationale**: Database uses `ON CONFLICT DO UPDATE`; seamless user experience on page refresh/reconnect.
+### 2. Helper Function Refactor
+**Decision**: Rename `_get_or_create_host()` → `_get_or_create_user()`.  
+**Rationale**: Function is semantically neutral (just gets/creates user record), not host-specific. Used by both host creation and participant joining. Private function (`_` prefix) means no external callers to break. Makes codebase more honest about what the function does.
 
-### 3. Display Name Uniqueness
-**Decision**: Display names are not globally unique; same name can be used by multiple users.  
-**Rationale**: Simplifies MVP UX. Future authentication will provide unique identifiers.
+### 3. Validation Error Codes
+**Decision**: 422 for empty/null display name (Pydantic); 400 for whitespace-only (service).  
+**Rationale**: Pydantic's `min_length=1` catches empty strings before service layer. Service validates business rule (no whitespace-only names). Different error codes help distinguish validation source.
 
-### 4. Joinable Session Statuses
-**Decision**: Only "draft" and "active" sessions are joinable; "ended" sessions return 409 Conflict.  
-**Rationale**: Draft allows pre-session joins; active is primary use case; ended sessions are closed.
+### 4. Host Role Protection - Critical
+**Decision**: When host joins own session, maintain `role="host"` not `role="participant"`.  
+**Rationale**: Prevents accidental role downgrade. Repository `ON CONFLICT DO UPDATE` would overwrite role if not handled. Check if `user_id == session.host_user_id` and preserve host role. **This is a critical bug fix** - without it, host could lose privileges.
 
-### 5. Host Re-joining
-**Decision**: Allow host to join their own session without error.  
-**Rationale**: Host participant record created during session creation; subsequent joins are no-ops.
+### 5. Idempotency Design
+**Decision**: Joining same session twice returns success without error.  
+**Rationale**: Database `ON CONFLICT DO UPDATE` handles duplicates gracefully. Enables seamless reconnect/refresh experience. No application error needed.
 
-### 6. Anonymous Access
+### 6. Display Name Uniqueness
+**Decision**: Display names are not globally unique; multiple users can use same name.  
+**Rationale**: Simplifies MVP UX (no "username already taken" errors). Each join creates/reuses user record by name. Future authentication will provide true unique identifiers.
+
+### 7. Joinable Session Statuses
+**Decision**: Only "draft" and "active" sessions joinable; "ended" returns 409 Conflict.  
+**Rationale**: Draft allows pre-session joins; active is primary use case; ended sessions are closed to new participants. 409 signals conflict with session state.
+
+### 8. Testing Ended Sessions
+**Decision**: Use direct SQL UPDATE in tests to create ended session scenario.  
+**Rationale**: No `end_session()` service method exists yet. Adding one now is scope creep. Direct DB manipulation is acceptable in tests and explicit about state setup.
+
+### 9. Anonymous Access
 **Decision**: No authentication required for MVP; users identified by display name per session.  
-**Rationale**: Reduces friction for classroom use. Future iterations will add proper auth.
+**Rationale**: Reduces friction for classroom use. Focus on core functionality first. Future iterations will add proper auth.
 
 ## Success Criteria
 
-- [ ] `POST /sessions/{code}/join` endpoint implemented and working
-- [ ] Participant can join session with valid code and display name
-- [ ] System creates participant record in database
-- [ ] Duplicate joins handled gracefully (idempotent)
-- [ ] Invalid codes return 404 with clear error message
-- [ ] Ended sessions return 409 (not joinable)
-- [ ] Empty display names return 400 (validation error)
-- [ ] Response includes complete SessionSummary with host details
-- [ ] All repository tests pass (add_participant, get_participant)
-- [ ] All service tests pass (8+ test cases covering edge cases)
-- [ ] All API tests pass (5+ test cases covering HTTP responses)
-- [ ] Integration test verifies end-to-end flow
-- [ ] API documentation complete in `docs/api/sessions.md`
-- [ ] Code follows existing patterns and conventions
+- [ ] **Refactor**: `_get_or_create_host()` renamed to `_get_or_create_user()`
+- [ ] **Schema**: `SessionJoin` replaced with `SessionJoinRequest` (display_name only)
+- [ ] **API**: `POST /sessions/{code}/join` endpoint implemented and working
+- [ ] **Join Flow**: Participant can join session with valid code and display name
+- [ ] **Database**: System creates participant record with correct role
+- [ ] **Idempotency**: Duplicate joins handled gracefully (same user → same session works)
+- [ ] **Errors**: Invalid codes return 404 with "Session not found"
+- [ ] **Errors**: Ended sessions return 409 with "Session has ended and is no longer joinable"
+- [ ] **Errors**: Whitespace display names return 400 with "Display name is required"
+- [ ] **Errors**: Empty/null display names return 422 (Pydantic validation)
+- [ ] **Role Protection**: Host joining own session maintains role="host" (not downgraded)
+- [ ] **Role Assignment**: Non-host joining session gets role="participant"
+- [ ] **Response**: Returns complete SessionSummary with host details
+- [ ] **Repository Tests**: Pass for add_participant, get_participant (ON CONFLICT, foreign keys)
+- [ ] **Service Tests**: Pass ~10 test cases covering all edge cases
+- [ ] **API Tests**: Pass ~6 test cases covering all HTTP responses
+- [ ] **Integration Tests**: Pass end-to-end flow with DB verification
+- [ ] **Documentation**: `docs/api/sessions.md` updated with join endpoint spec
+- [ ] **Code Quality**: Follows existing patterns and conventions
 
-## Known Limitations
+## Known Limitations & Trade-offs
 
-- Display name collisions possible (multiple users with same name)
-- Spam joins create user records (future: rate limiting)
-- No participant capacity limits (future: configurable max)
-- API only - no frontend implementation in this phase
+- **Display name collisions**: Multiple users can use same display name (acceptable for MVP, fixed by auth)
+- **No session persistence**: Browser session only (no cookies/tokens for returning users)
+- **Spam joins**: Each join creates user record (future: rate limiting, user deduplication)
+- **No capacity limits**: Sessions can have unlimited participants (future: configurable max)
+- **API only**: No frontend implementation in this phase (deliberate scope constraint)
+- **Direct SQL in tests**: Using UPDATE to test ended sessions (acceptable, explicit test setup)
+- **Error message hardcoding**: Exception messages defined in code (future: i18n/centralized messages)
+
+## Critical Implementation Notes
+
+### Host Role Protection Logic
+```python
+# Pseudo-code for service layer
+session = get_session_by_code(conn, code)
+user = _get_or_create_user(conn, display_name)
+
+# CRITICAL: Check if user is the session host
+if user["id"] == session["host_user_id"]:
+    role = "host"  # Maintain host privileges
+else:
+    role = "participant"  # Regular participant
+
+add_participant(conn, session_id=session["id"], user_id=user["id"], role=role)
+```
+
+### Error Message Definitions
+- `SessionNotFoundError`: "Session not found"
+- `SessionNotJoinableError`: "Session has ended and is no longer joinable"
+- `InvalidDisplayNameError`: "Display name is required" (reuse existing)
+
+### Testing Ended Sessions
+```python
+# In test setup - direct SQL manipulation
+with db_connection() as conn:
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE sessions SET status = 'ended' WHERE code = %s",
+            (session_code,)
+        )
+```
 
 ## Follow-up Work
 
@@ -249,8 +316,9 @@ Create `SessionJoinRequest` with only `display_name` field since code comes from
 3. **Questions & Voting API**: Backend for question submission and voting
 4. **Questions & Voting UI**: Frontend for question/voting interaction
 5. **WebSocket Integration**: Real-time updates for participants and questions
-6. **Participant Roster**: Show list of joined participants
-7. **Authentication**: Replace display names with proper user accounts
-8. **Rate Limiting**: Prevent spam joins
+6. **Participant Roster API**: Endpoint to list all session participants
+7. **Authentication**: Replace display names with proper user accounts and sessions
+8. **Rate Limiting**: Prevent spam joins (per-IP or per-session throttling)
 9. **Session Capacity**: Configurable participant limits per session
 10. **Host Controls API**: Start, pause, end session endpoints
+
