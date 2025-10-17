@@ -13,10 +13,11 @@ API documentation for frontend contributors integrating with the session creatio
 
 ## Endpoints
 
-| Method | Path        | Description                                    |
-| ------ | ----------- | ---------------------------------------------- |
-| POST   | `/sessions` | Create a new classroom session                 |
-| GET    | `/sessions` | Retrieve recent joinable sessions              |
+| Method | Path                    | Description                                    |
+| ------ | ----------------------- | ---------------------------------------------- |
+| POST   | `/sessions`             | Create a new classroom session                 |
+| GET    | `/sessions`             | Retrieve recent joinable sessions              |
+| POST   | `/sessions/{code}/join` | Join a session as a participant                |
 
 ---
 
@@ -188,4 +189,100 @@ curl http://localhost:8000/sessions
 curl http://localhost:8000/sessions?limit=5
 ```
 
+```
+
 Expect a `200` response with an array of session objects.
+
+---
+
+## POST /sessions/{code}/join
+
+Join an existing classroom session as a participant using the session's join code.
+
+### Request
+
+- **Path Parameters**:
+  
+  | Parameter | Type   | Required | Notes                                      |
+  | --------- | ------ | -------- | ------------------------------------------ |
+  | `code`    | string | Yes      | Six-character session join code            |
+
+- **Headers**: `Content-Type: application/json`
+- **Body (JSON)**:
+  ```json
+  {
+    "display_name": "Student Alice"
+  }
+  ```
+
+#### Body Fields
+
+| Field          | Type   | Required | Rules                                    |
+| -------------- | ------ | -------- | ---------------------------------------- |
+| `display_name` | string | Yes      | 1-100 characters; identifies the participant |
+
+### Successful Response
+
+- **Status**: `200 OK`
+- **Body (JSON)**:
+  ```json
+  {
+    "id": 123,
+    "code": "X4TZQF",
+    "title": "Literature Seminar",
+    "status": "draft",
+    "host": {
+      "id": 45,
+      "display_name": "Prof. Bloom"
+    },
+    "created_at": "2025-10-12T07:10:12.345678Z"
+  }
+  ```
+
+#### Response Fields
+
+Returns a `SessionSummary` object with the following fields:
+
+| Field                | Type   | Notes                                         |
+| -------------------- | ------ | --------------------------------------------- |
+| `id`                 | int    | Session identifier                            |
+| `code`               | string | Six-character join code                       |
+| `title`              | string | Session title                                 |
+| `status`             | string | Current session status (draft/active/ended)   |
+| `host.id`            | int    | Host user identifier                          |
+| `host.display_name`  | string | Host display name                             |
+| `created_at`         | string | ISO 8601 timestamp in UTC                     |
+
+### Error Responses
+
+| Status | When it Occurs                               | Body Example |
+| ------ | -------------------------------------------- | ------------ |
+| 400    | Display name is whitespace-only              | `{ "detail": "Display name is required" }` |
+| 404    | Session code does not exist                  | `{ "detail": "Session not found" }` |
+| 409    | Session has ended and is no longer joinable  | `{ "detail": "Session has ended and is no longer joinable" }` |
+| 422    | Validation error (empty or null display name)| `{ "detail": [ { "loc": ["body", "display_name"], "msg": "String should have at least 1 characters", "type": "string_too_short" } ] }` |
+
+### Behavior Notes
+
+- **User Creation**: If a user with the provided display name doesn't exist, one is created automatically.
+- **Idempotency**: Joining the same session multiple times with the same display name is safe and returns success. The participant record is updated if it already exists.
+- **Role Protection**: If the host joins their own session (matching display name), their role remains "host" rather than being downgraded to "participant".
+- **Status Filtering**: Only sessions with status "draft" or "active" can be joined. Attempting to join an "ended" session returns 409.
+
+### Testing Notes
+
+You can exercise the endpoint locally with curl:
+
+```bash
+# First, create a session to get a join code
+curl -X POST http://localhost:8000/sessions \
+  -H 'Content-Type: application/json' \
+  -d '{"title": "Literature Seminar", "host_display_name": "Prof. Bloom"}'
+
+# Then join the session using the code from the response
+curl -X POST http://localhost:8000/sessions/X4TZQF/join \
+  -H 'Content-Type: application/json' \
+  -d '{"display_name": "Student Alice"}'
+```
+
+Expect a `200` response with the session summary JSON payload.
