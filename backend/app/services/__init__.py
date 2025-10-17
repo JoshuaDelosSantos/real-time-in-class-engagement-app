@@ -5,6 +5,8 @@ from .sessions import (
 	HostSessionLimitError,
 	SessionCodeCollisionError,
 	InvalidHostDisplayNameError,
+	SessionNotFoundError,
+	SessionNotJoinableError,
 	get_session_service,
 )
 
@@ -13,5 +15,7 @@ __all__ = [
 	"HostSessionLimitError",
 	"SessionCodeCollisionError",
 	"InvalidHostDisplayNameError",
+	"SessionNotFoundError",
+	"SessionNotJoinableError",
 	"get_session_service",
 ]
