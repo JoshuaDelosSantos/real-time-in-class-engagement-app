@@ -216,6 +216,31 @@ fetch(url, {
 })
 ```
 
+**Join Session Example** (backend ready, frontend pending):
+
+```javascript
+// POST to /sessions/{code}/join
+const code = 'ABC123'; // From user input
+const response = await fetch(`http://localhost:8000/sessions/${code}/join`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    display_name: 'Student Alice'
+  }),
+});
+
+if (!response.ok) {
+  // Handle errors: 400 (invalid name), 404 (code not found), 
+  // 409 (session ended), 422 (validation error)
+  throw new Error(`Failed to join: ${response.status}`);
+}
+
+const session = await response.json();
+// session contains: { id, code, title, status, host, created_at }
+```
+
 ### Other Methods
 
 ```javascript
@@ -229,7 +254,7 @@ fetch(url, { method: 'DELETE' })
 fetch(url, { method: 'PATCH', body: JSON.stringify(partialData) })
 ```
 
-See `public/js/api.js` for `createSession()` POST example.
+See `public/js/api.js` for `createSession()` POST example. Join session implementation pending.
 
 ---
 
@@ -279,5 +304,8 @@ app.add_middleware(
 | Check health | `checkHealth()` | `js/api.js` |
 | Fetch sessions | `fetchSessions(limit)` | `js/api.js` |
 | Create session | `createSession(data)` | `js/api.js` |
+| Join session* | `joinSession(code, displayName)` | `js/api.js` (pending) |
 | Show loading | `showLoading(element)` | `js/ui.js` |
 | Show error | `renderError(element, msg)` | `js/ui.js` |
+
+\* Backend endpoint available (`POST /sessions/{code}/join`), frontend implementation pending.
