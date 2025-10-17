@@ -7,7 +7,7 @@ from .sessions import (
     SessionRead,
     SessionSummary,
     SessionUpdate,
-    SessionJoin,
+    SessionJoinRequest,
     SessionStatus,
 )
 from .session_participants import (
@@ -34,38 +34,22 @@ from .question_votes import (
 from .health import HealthStatus, DatabasePingResult
 
 __all__ = [
-    # Users
-    "UserBase",
-    "UserCreate",
-    "UserRead",
-    "UserSummary",
-    # Sessions
-    "SessionBase",
-    "SessionCreate",
-    "SessionRead",
-    "SessionSummary",
-    "SessionUpdate",
-    "SessionJoin",
-    "SessionStatus",
-    # Session Participants
-    "SessionParticipantBase",
-    "SessionParticipantCreate",
-    "SessionParticipantRead",
-    "SessionParticipantSummary",
-    "ParticipantRole",
-    # Questions
-    "QuestionBase",
-    "QuestionCreate",
-    "QuestionRead",
-    "QuestionSummary",
-    "QuestionUpdate",
-    "QuestionStatus",
+    # Health
+    "HealthResponse",
     # Question Votes
     "QuestionVoteCreate",
     "QuestionVoteRead",
-    "QuestionVoteSummary",
-    "VoteToggleResult",
-    # Health
-    "HealthStatus",
-    "DatabasePingResult",
+    # Questions
+    "QuestionCreate",
+    "QuestionRead",
+    "QuestionSummary",
+    # Session Participants
+    "SessionParticipantSummary",
+    # Sessions
+    "SessionCreate",
+    "SessionJoinRequest",
+    "SessionSummary",
+    # Users
+    "UserCreate",
+    "UserSummary",
 ]
