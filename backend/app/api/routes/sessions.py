@@ -6,11 +6,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status # type: ignore
 
-from app.schemas.sessions import SessionCreate, SessionSummary
+from app.schemas.sessions import SessionCreate, SessionJoinRequest, SessionSummary
 from app.services import (
     HostSessionLimitError,
     InvalidHostDisplayNameError,
     SessionCodeCollisionError,
+    SessionNotFoundError,
+    SessionNotJoinableError,
     get_session_service,
 )
 
@@ -47,3 +49,22 @@ async def list_sessions(
 
     service = get_session_service()
     return service.get_recent_sessions(limit=limit)
+
+
+@router.post("/{code}/join", response_model=SessionSummary, status_code=status.HTTP_200_OK)
+async def join_session(code: str, payload: SessionJoinRequest) -> SessionSummary:
+    """Join a session using a code and display name.
+    
+    Creates or retrieves a user by display name and adds them as a participant.
+    Returns session details for the joined session.
+    """
+
+    service = get_session_service()
+    try:
+        return service.join_session(code=code, display_name=payload.display_name)
+    except InvalidHostDisplayNameError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except SessionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except SessionNotJoinableError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
