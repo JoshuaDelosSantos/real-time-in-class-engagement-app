@@ -463,9 +463,27 @@ All code examples in the plan have been updated to reflect these corrections.
   - ✅ 404 error displays "Session not found"
   - ✅ Idempotent joins work correctly
 
-### Phase 2: UI Helper Updates
-5. Update `showLoading(element, message = 'Loading…')` in `public/js/ui.js` to accept optional message parameter
-6. Verify existing `.error-message` styling in `styles.css` (should already exist)
+### Phase 2: UI Helper Updates ✅ COMPLETE
+5. ✅ Update `showLoading(element, message = 'Loading…')` in `public/js/ui.js` to accept optional message parameter
+6. ✅ Verify existing `.error-message` styling in `styles.css` (should already exist)
+
+**Completion Notes**:
+- `showLoading()` function updated at line 104 in `frontend/public/js/ui.js`
+- Added optional `message` parameter with default value `'Loading…'`
+- Updated JSDoc documentation with `@param` tag for optional parameter
+- Uses `escapeHtml()` for XSS protection on message content
+- Backward compatible: existing `showLoading(output)` calls still work
+- Verified CSS classes exist in `frontend/public/css/styles.css`:
+  - ✅ `.loading-message` at line 132 (color: #64748b, centered, padding)
+  - ✅ `.error-message` at line 138 (color: #dc2626, background, border)
+  - ✅ `.empty-message` at line 125 (for completeness)
+- Test page created: `frontend/public/test-showloading.html`
+- Verified all test scenarios:
+  - ✅ Default message ("Loading…") works without parameter
+  - ✅ Custom messages display correctly ("Joining session…")
+  - ✅ XSS protection prevents malicious HTML execution
+  - ✅ Multiple contexts work simultaneously
+  - ✅ Existing "Fetch Sessions" feature still works
 
 ### Phase 3: HTML Form
 7. Add join session form section to `index.html`
