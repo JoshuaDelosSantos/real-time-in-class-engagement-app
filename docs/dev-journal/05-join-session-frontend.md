@@ -443,14 +443,25 @@ All code examples in the plan have been updated to reflect these corrections.
 
 ## Implementation Plan
 
-### Phase 1: API Function
-1. Add `joinSession(code, displayName)` to `public/js/api.js`
-2. **Include 422 array handling fix** (check `Array.isArray(errorData.detail)`)
-3. Add JSDoc documentation
-4. Manual test with browser console:
+### Phase 1: API Function ✅ COMPLETE
+1. ✅ Add `joinSession(code, displayName)` to `public/js/api.js`
+2. ✅ **Include 422 array handling fix** (check `Array.isArray(errorData.detail)`)
+3. ✅ Add JSDoc documentation
+4. ✅ Manual test with browser console:
    ```javascript
    joinSession('ABC123', 'Test User').then(console.log).catch(console.error);
    ```
+
+**Completion Notes**:
+- Function added at line 88 in `frontend/public/js/api.js`
+- 422 array parsing implemented correctly (extracts `.msg` from first array element)
+- Comprehensive JSDoc with `@param`, `@returns`, `@throws`, `@example`
+- Test page created: `frontend/public/test-join.html`
+- Verified all test scenarios:
+  - ✅ Successful join returns SessionSummary
+  - ✅ 422 validation error displays readable message (NOT "[object Object]")
+  - ✅ 404 error displays "Session not found"
+  - ✅ Idempotent joins work correctly
 
 ### Phase 2: UI Helper Updates
 5. Update `showLoading(element, message = 'Loading…')` in `public/js/ui.js` to accept optional message parameter
