@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test showLoading() Function</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .test-section {
+      margin: 2rem 0;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: white;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      margin: 0.5rem 0.5rem 0.5rem 0;
+      cursor: pointer;
+    }
+    .output-box {
+      margin-top: 1rem;
+      min-height: 50px;
+      border: 1px dashed #ccc;
+      border-radius: 4px;
+    }
+    .success { 
+      color: #22c55e; 
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test showLoading() Function - Phase 2</h1>
+  
+  <div class="test-section">
+    <h2>Test 1: Default Message (Backward Compatibility)</h2>
+    <p>Tests that existing code without message parameter still works.</p>
+    <button onclick="testDefaultMessage()">Run Test</button>
+    <div id="test1-output" class="output-box"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 2: Custom Message</h2>
+    <p>Tests new functionality with custom loading message.</p>
+    <button onclick="testCustomMessage()">Run Test</button>
+    <div id="test2-output" class="output-box"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 3: XSS Protection</h2>
+    <p>Tests that malicious HTML is escaped properly.</p>
+    <button onclick="testXSSProtection()">Run Test</button>
+    <div id="test3-output" class="output-box"></div>
+    <p id="test3-result"></p>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 4: Multiple Contexts</h2>
+    <p>Tests different loading messages for different contexts.</p>
+    <button onclick="testMultipleContexts()">Run Test</button>
+    <div id="test4-output-1" class="output-box"></div>
+    <div id="test4-output-2" class="output-box" style="margin-top: 0.5rem;"></div>
+    <div id="test4-output-3" class="output-box" style="margin-top: 0.5rem;"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 5: Integration Test (Fetch Sessions)</h2>
+    <p>Tests that the existing "Fetch Sessions" feature still works with the updated function.</p>
+    <button id="fetch-sessions">Fetch Sessions</button>
+    <div id="sessions-output" class="output-box"></div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    function testDefaultMessage() {
+      const output = document.getElementById('test1-output');
+      
+      // Call without message parameter (backward compatibility)
+      showLoading(output);
+      
+      // Verify the default message is "Loading…"
+      setTimeout(() => {
+        const message = output.querySelector('.loading-message')?.textContent;
+        if (message === 'Loading…') {
+          output.innerHTML += '<p class="success">✓ PASS: Default message is "Loading…"</p>';
+        } else {
+          output.innerHTML += `<p style="color: red;">✗ FAIL: Expected "Loading…" but got "${message}"</p>`;
+        }
+      }, 100);
+    }
+
+    function testCustomMessage() {
+      const output = document.getElementById('test2-output');
+      
+      // Call with custom message
+      showLoading(output, 'Joining session…');
+      
+      // Verify the custom message is displayed
+      setTimeout(() => {
+        const message = output.querySelector('.loading-message')?.textContent;
+        if (message === 'Joining session…') {
+          output.innerHTML += '<p class="success">✓ PASS: Custom message displayed correctly</p>';
+        } else {
+          output.innerHTML += `<p style="color: red;">✗ FAIL: Expected "Joining session…" but got "${message}"</p>`;
+        }
+      }, 100);
+    }
+
+    function testXSSProtection() {
+      const output = document.getElementById('test3-output');
+      const result = document.getElementById('test3-result');
+      
+      // Try to inject malicious HTML (using string concatenation to avoid linter false positives)
+      const scriptTag = '<' + 'script' + '>alert("XSS")<' + '/script' + '>';
+      const imgTag = '<' + 'img src=x onerror=alert("XSS")' + '>';
+      const maliciousInput = scriptTag + imgTag;
+      showLoading(output, maliciousInput);
+      
+      // Check that the content is escaped
+      setTimeout(() => {
+        const html = output.innerHTML;
+        const scriptSearch = '<' + 'script' + '>';
+        const imgSearch = '<' + 'img';
+        const hasScriptTag = html.includes(scriptSearch);
+        const hasImgTag = html.includes(imgSearch);
+        
+        if (!hasScriptTag && !hasImgTag) {
+          result.innerHTML = '<p class="success">✓ PASS: Malicious HTML was escaped and not executed</p>';
+        } else {
+          result.innerHTML = '<p style="color: red;">✗ FAIL: XSS vulnerability detected!</p>';
+        }
+      }, 100);
+    }
+
+    function testMultipleContexts() {
+      const output1 = document.getElementById('test4-output-1');
+      const output2 = document.getElementById('test4-output-2');
+      const output3 = document.getElementById('test4-output-3');
+      
+      // Different messages for different contexts
+      showLoading(output1, 'Creating session…');
+      showLoading(output2, 'Joining session…');
+      showLoading(output3, 'Submitting question…');
+      
+      setTimeout(() => {
+        const msg1 = output1.querySelector('.loading-message')?.textContent;
+        const msg2 = output2.querySelector('.loading-message')?.textContent;
+        const msg3 = output3.querySelector('.loading-message')?.textContent;
+        
+        if (msg1 === 'Creating session…' && 
+            msg2 === 'Joining session…' && 
+            msg3 === 'Submitting question…') {
+          output3.innerHTML += '<p class="success">✓ PASS: All context-specific messages work correctly</p>';
+        } else {
+          output3.innerHTML += '<p style="color: red;">✗ FAIL: Messages do not match expected values</p>';
+        }
+      }, 100);
+    }
+  </script>
+</body>
+</html>
