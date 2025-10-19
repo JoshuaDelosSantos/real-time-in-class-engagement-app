@@ -128,3 +128,105 @@ async function joinSession(code, displayName) {
   
   return await response.json();
 }
+
+/**
+ * Get details for a specific session by code.
+ * 
+ * @param {string} code - The 6-character session join code
+ * @returns {Promise<Object>} Session summary object
+ * @throws {Error} If the request fails or returns non-2xx status
+ * 
+ * @example
+ * const session = await getSessionDetails('ABC123');
+ * console.log(session.title); // "Physics 301"
+ */
+async function getSessionDetails(code) {
+  const response = await fetch(`${API_BASE_URL}/sessions/${code}`);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    let message = `HTTP ${response.status}`;
+    
+    if (errorData.detail) {
+      if (Array.isArray(errorData.detail)) {
+        message = errorData.detail[0]?.msg || JSON.stringify(errorData.detail);
+      } else {
+        message = errorData.detail;
+      }
+    }
+    
+    throw new Error(message);
+  }
+  
+  return await response.json();
+}
+
+/**
+ * Get participant roster for a session.
+ * 
+ * @param {string} code - The 6-character session join code
+ * @returns {Promise<Array>} Array of participant objects with user details and roles
+ * @throws {Error} If the request fails or returns non-2xx status
+ * 
+ * @example
+ * const participants = await getSessionParticipants('ABC123');
+ * console.log(participants[0].user.display_name); // "Prof. Smith"
+ */
+async function getSessionParticipants(code) {
+  const response = await fetch(`${API_BASE_URL}/sessions/${code}/participants`);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    let message = `HTTP ${response.status}`;
+    
+    if (errorData.detail) {
+      if (Array.isArray(errorData.detail)) {
+        message = errorData.detail[0]?.msg || JSON.stringify(errorData.detail);
+      } else {
+        message = errorData.detail;
+      }
+    }
+    
+    throw new Error(message);
+  }
+  
+  return await response.json();
+}
+
+/**
+ * Get questions for a session with optional status filter.
+ * 
+ * @param {string} code - The 6-character session join code
+ * @param {string|null} [status=null] - Optional status filter ('pending' or 'answered')
+ * @returns {Promise<Array>} Array of question objects with author details
+ * @throws {Error} If the request fails or returns non-2xx status
+ * 
+ * @example
+ * const allQuestions = await getSessionQuestions('ABC123');
+ * const pendingOnly = await getSessionQuestions('ABC123', 'pending');
+ */
+async function getSessionQuestions(code, status = null) {
+  const url = new URL(`${API_BASE_URL}/sessions/${code}/questions`);
+  if (status) {
+    url.searchParams.set('status', status);
+  }
+  
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    let message = `HTTP ${response.status}`;
+    
+    if (errorData.detail) {
+      if (Array.isArray(errorData.detail)) {
+        message = errorData.detail[0]?.msg || JSON.stringify(errorData.detail);
+      } else {
+        message = errorData.detail;
+      }
+    }
+    
+    throw new Error(message);
+  }
+  
+  return await response.json();
+}
