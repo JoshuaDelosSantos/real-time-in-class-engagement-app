@@ -1,111 +1,10 @@
-<!DOCTYPE html><!DOCTYPE html>
-
-<html lang="en"><html lang="en">
-
-  <head>  <head>
-
-    <meta charset="UTF-8" />    <meta charset="UTF-8" />
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-    <title>ClassEngage Health Check</title>    <title>ClassEngage Health Check</title>
-
-    <link rel="stylesheet" href="/css/styles.css" />    <style>
-
-  </head>      body {
-
-  <body>        font-family: system-ui, sans-serif;
-
-    <section>        display: flex;
-
-      <h1>ClassEngage Health Check</h1>        flex-direction: column;
-
-      <h2>API Status</h2>        gap: 2rem;
-
-      <button id="ping">Check Health</button>        align-items: center;
-
-      <pre id="output">Click the button to fetch /health</pre>        justify-content: center;
-
-    </section>        min-height: 100vh;
-
-        background: #f7fafc;
-
-    <section>        padding: 1rem;
-
-      <h2>Available Sessions</h2>      }
-
-      <button id="fetch-sessions">Fetch Sessions</button>      section {
-
-      <div id="sessions-output">Click the button to load sessions</div>        background: #fff;
-
-    </section>        padding: 2rem;
-
-        border-radius: 0.5rem;
-
-    <!-- Load scripts in dependency order: utils → api → ui -->        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-
-    <script src="/js/utils.js"></script>        max-width: 600px;
-
-    <script src="/js/api.js"></script>        width: 100%;
-
-    <script src="/js/ui.js"></script>      }
-
-  </body>      h1 {
-
-</html>        margin-top: 0;
-
-      }
-      h2 {
-        font-size: 1.25rem;
-        margin-bottom: 1rem;
-      }
-      button {
-        padding: 0.75rem 1.5rem;
-        font-size: 1.1rem;
-        border-radius: 0.5rem;
-        border: none;
-        background: #2563eb;
-        color: #fff;
-        cursor: pointer;
-        margin-bottom: 1rem;
-      }
-      button:hover {
-        background: #1d4ed8;
-      }
-      pre {
-        background: #0f172a;
-        color: #f8fafc;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        overflow-x: auto;
-      }
-      .session-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-      }
-      .session-card {
-        background: #f1f5f9;
-        padding: 1rem;
-        border-radius: 0.375rem;
-        border-left: 4px solid #2563eb;
-      }
-      .session-title {
-        font-weight: 600;
-        font-size: 1.1rem;
-        margin-bottom: 0.25rem;
-      }
-      .session-meta {
-        color: #64748b;
-        font-size: 0.9rem;
-      }
-      .empty-message {
-        color: #64748b;
-        font-style: italic;
-        text-align: center;
-        padding: 2rem;
-      }
-    </style>
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClassEngage</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
   </head>
   <body>
     <section>
@@ -121,159 +20,45 @@
       <div id="sessions-output">Click the button to load sessions</div>
     </section>
 
-    <script>
-      // ============================================================
-      // Health Check Example
-      // ============================================================
-      // This demonstrates a simple GET request to check API status.
-      // The fetch API is native to modern browsers and returns a Promise.
-
-      const pingButton = document.getElementById('ping');
-      const output = document.getElementById('output');
-
-      pingButton.addEventListener('click', async () => {
-        // Provide immediate feedback to the user
-        output.textContent = 'Checking…';
+    <section>
+      <h2>Join a Session</h2>
+      <form id="join-form">
+        <div class="form-group">
+          <label for="session-code">Session Code</label>
+          <input 
+            type="text" 
+            id="session-code" 
+            placeholder="ABC123" 
+            maxlength="6"
+            pattern="[A-Z0-9]{6}"
+            required
+            style="text-transform: uppercase;"
+            oninput="this.value = this.value.toUpperCase()"
+          />
+          <small>Enter the 6-character code provided by your instructor</small>
+        </div>
         
-        try {
-          // fetch() initiates an HTTP request. Default method is GET.
-          // It returns a Promise that resolves to a Response object.
-          const response = await fetch('http://localhost:8000/health');
-          
-          // Always check response.ok (status 200-299) before parsing
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          
-          // Parse JSON body from the response
-          const data = await response.json();
-          
-          // Display formatted JSON in the <pre> element
-          output.textContent = JSON.stringify(data, null, 2);
-        } catch (error) {
-          // Network errors, parse failures, or thrown errors land here
-          output.textContent = `Error: ${error.message}`;
-        }
-      });
-
-      // ============================================================
-      // Fetch Sessions Example
-      // ============================================================
-      // This shows how to fetch a list, handle empty results,
-      // and dynamically build HTML from API data.
-
-      const fetchSessionsButton = document.getElementById('fetch-sessions');
-      const sessionsOutput = document.getElementById('sessions-output');
-
-      fetchSessionsButton.addEventListener('click', async () => {
-        // Clear previous content and show loading state
-        sessionsOutput.textContent = 'Loading sessions…';
+        <div class="form-group">
+          <label for="display-name">Your Display Name</label>
+          <input 
+            type="text" 
+            id="display-name" 
+            placeholder="Student Alice" 
+            maxlength="100"
+            required
+          />
+          <small>This is how you'll appear to others (1-100 characters)</small>
+        </div>
         
-        try {
-          // GET request to retrieve sessions list
-          const response = await fetch('http://localhost:8000/sessions');
-          
-          // Check for HTTP errors (4xx, 5xx)
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
-          
-          // Parse the response body as JSON (expects an array)
-          const sessions = await response.json();
-          
-          // Handle empty results gracefully
-          if (sessions.length === 0) {
-            sessionsOutput.innerHTML = '<div class="empty-message">No sessions available</div>';
-            return;
-          }
+        <button type="submit" id="join-button">Join Session</button>
+      </form>
+      
+      <div id="join-output">Enter a session code and your name to join</div>
+    </section>
 
-          // Transform API data into HTML. Use .map() to iterate over each session.
-          // Always escape user-provided data to prevent XSS attacks.
-          const sessionCards = sessions.map(session => `
-            <div class="session-card">
-              <div class="session-title">${escapeHtml(session.title)}</div>
-              <div class="session-meta">
-                Code: <strong>${escapeHtml(session.code)}</strong> • 
-                Host: ${escapeHtml(session.host.display_name)} • 
-                Status: ${escapeHtml(session.status)}
-              </div>
-            </div>
-          `).join('');
-
-          // Inject the generated HTML into the container
-          sessionsOutput.innerHTML = `<div class="session-list">${sessionCards}</div>`;
-        } catch (error) {
-          // Display any errors (network issues, invalid JSON, etc.)
-          sessionsOutput.textContent = `Error: ${error.message}`;
-        }
-      });
-
-      // ============================================================
-      // Security Helper: HTML Escaping
-      // ============================================================
-      // ALWAYS escape user-provided content before inserting into innerHTML.
-      // This prevents Cross-Site Scripting (XSS) attacks where malicious
-      // code could be injected via API data.
-      //
-      // How it works:
-      // 1. Create a temporary DOM element
-      // 2. Set textContent (automatically escapes special chars)
-      // 3. Read back innerHTML to get the escaped string
-      //
-      // Example: escapeHtml('<img src=x onerror=alert(1)>')
-      //   returns: '&lt;img src=x onerror=alert(1)&gt;'
-
-      function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-      }
-
-      // ============================================================
-      // Tips for Frontend Developers
-      // ============================================================
-      //
-      // 1. ASYNC/AWAIT vs PROMISES
-      //    async/await is syntactic sugar over Promises. These are equivalent:
-      //
-      //    fetch(url).then(res => res.json()).then(data => console.log(data));
-      //    const res = await fetch(url); const data = await res.json(); console.log(data);
-      //
-      // 2. ERROR HANDLING
-      //    - fetch() only rejects on network failures, NOT HTTP errors (404, 500, etc.)
-      //    - Always check response.ok before parsing the body
-      //    - Wrap fetch calls in try/catch to handle all error types
-      //
-      // 3. HTTP METHODS
-      //    Default is GET. For POST requests:
-      //
-      //    fetch(url, {
-      //      method: 'POST',
-      //      headers: { 'Content-Type': 'application/json' },
-      //      body: JSON.stringify({ title: 'New Session', host_display_name: 'Prof. X' })
-      //    });
-      //
-      // 4. CORS (Cross-Origin Resource Sharing)
-      //    If your frontend runs on a different origin (domain/port),
-      //    the backend must include CORS headers. FastAPI handles this
-      //    via CORSMiddleware configuration.
-      //
-      // 5. LOADING STATES
-      //    Always provide feedback during async operations:
-      //    - Show "Loading..." text immediately on button click
-      //    - Replace with data or error message when complete
-      //    - Consider disabling buttons during requests to prevent duplicate calls
-      //
-      // 6. SECURITY
-      //    - Never trust API data; always escape before rendering
-      //    - Use textContent for plain text, escapeHtml() for innerHTML
-      //    - Validate/sanitise input on both client AND server
-      //
-      // 7. API DOCUMENTATION
-      //    See docs/api/sessions.md for endpoint specs, response schemas,
-      //    and example requests/responses.
-      //
-      // ============================================================
-    </script>
+    <!-- Load scripts in dependency order: utils → api → ui -->
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/ui.js"></script>
   </body>
 </html>
