@@ -12,6 +12,7 @@
 function initializeApp() {
   setupHealthCheck();
   setupSessionsFetch();
+  setupJoinSession();
 }
 
 /**
@@ -56,6 +57,78 @@ function setupSessionsFetch() {
       renderError(output, error.message);
     } finally {
       button.disabled = false;
+    }
+  });
+}
+
+/**
+ * Set up the join session form and handler.
+ */
+function setupJoinSession() {
+  const form = document.getElementById('join-form');
+  const codeInput = document.getElementById('session-code');
+  const nameInput = document.getElementById('display-name');
+  const submitButton = document.getElementById('join-button');
+  const output = document.getElementById('join-output');
+  
+  // DOM guards
+  if (!form || !codeInput || !nameInput || !submitButton || !output) {
+    console.warn('Join session form elements not found, skipping setup');
+    return;
+  }
+  
+  // Live input transformation
+  codeInput.addEventListener('input', (event) => {
+    event.target.value = event.target.value.toUpperCase();
+  });
+  
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    
+    const code = codeInput.value.trim().toUpperCase();
+    const displayName = nameInput.value.trim();
+    
+    // Validation
+    if (!code || code.length !== 6) {
+      renderError(output, 'Please enter a valid 6-character session code');
+      return;
+    }
+    
+    if (!displayName || displayName.length < 1) {
+      renderError(output, 'Please enter your display name');
+      return;
+    }
+    
+    if (displayName.length > 100) {
+      renderError(output, 'Display name must be 100 characters or less');
+      return;
+    }
+    
+    // Disable during request
+    submitButton.disabled = true;
+    codeInput.disabled = true;
+    nameInput.disabled = true;
+    showLoading(output, 'Joining session…');
+    
+    try {
+      const session = await joinSession(code, displayName);
+      
+      // Store session info
+      sessionStorage.setItem('currentSession', JSON.stringify({
+        code: session.code,
+        displayName: displayName,
+        joinedAt: new Date().toISOString()
+      }));
+      
+      renderJoinSuccess(output, session, displayName);
+      form.reset();
+      
+    } catch (error) {
+      renderJoinError(output, error.message);
+    } finally {
+      submitButton.disabled = false;
+      codeInput.disabled = false;
+      nameInput.disabled = false;
     }
   });
 }
@@ -114,6 +187,52 @@ function showLoading(element, message = 'Loading…') {
  */
 function renderError(element, message) {
   element.innerHTML = `<div class="error-message">Error: ${escapeHtml(message)}</div>`;
+}
+
+/**
+ * Render successful join session result.
+ * 
+ * @param {HTMLElement} element - Target element
+ * @param {Object} session - Session summary object from API
+ * @param {string} displayName - User's display name
+ */
+function renderJoinSuccess(element, session, displayName) {
+  element.innerHTML = `
+    <div class="success-message">
+      <h3>✓ Successfully joined!</h3>
+      <div class="session-details">
+        <p><strong>Session:</strong> ${escapeHtml(session.title)}</p>
+        <p><strong>Code:</strong> ${escapeHtml(session.code)}</p>
+        <p><strong>Host:</strong> ${escapeHtml(session.host.display_name)}</p>
+        <p><strong>Your name:</strong> ${escapeHtml(displayName)}</p>
+        <p><strong>Status:</strong> ${escapeHtml(session.status)}</p>
+      </div>
+      <p class="next-steps">You're now a participant in this session. Question submission coming soon!</p>
+    </div>
+  `;
+}
+
+/**
+ * Render join session error with friendly messages.
+ * 
+ * @param {HTMLElement} element - Target element
+ * @param {string} errorMessage - Error message from API
+ */
+function renderJoinError(element, errorMessage) {
+  const friendlyMessages = {
+    'Session not found': 'Invalid session code. Please check and try again.',
+    'Session has ended and is no longer joinable': 'This session has ended and is no longer accepting participants.',
+    'Display name is required': 'Please enter a display name (cannot be only spaces).',
+  };
+  
+  const displayMessage = friendlyMessages[errorMessage] || errorMessage;
+  
+  element.innerHTML = `
+    <div class="error-message">
+      <p><strong>Unable to join session</strong></p>
+      <p>${escapeHtml(displayMessage)}</p>
+    </div>
+  `;
 }
 
 // Initialize when DOM is ready
