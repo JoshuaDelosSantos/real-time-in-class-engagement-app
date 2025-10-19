@@ -161,6 +161,104 @@ See `public/js/utils.js` for the implementation.
 
 ---
 
+## Form Handling Patterns
+
+This section covers best practices for handling form submissions with API calls, based on the join session implementation.
+
+### Complete Form Handler Example
+
+```javascript
+function setupJoinSession() {
+  const form = document.getElementById('join-form');
+  const codeInput = document.getElementById('session-code');
+  const nameInput = document.getElementById('display-name');
+  const submitButton = document.getElementById('join-button');
+  const output = document.getElementById('join-output');
+  
+  // 1. DOM Guards - prevent crashes if elements missing
+  if (!form || !codeInput || !nameInput || !submitButton || !output) {
+    console.warn('Join session form elements not found, skipping setup');
+    return;
+  }
+  
+  // 2. Live Input Transformation (optional)
+  codeInput.addEventListener('input', (event) => {
+    event.target.value = event.target.value.toUpperCase();
+  });
+  
+  // 3. Form Submit Handler
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();  // Prevent page reload
+    
+    const code = codeInput.value.trim().toUpperCase();
+    const displayName = nameInput.value.trim();
+    
+    // 4. Client-Side Validation
+    if (!code || code.length !== 6) {
+      renderError(output, 'Please enter a valid 6-character session code');
+      return;
+    }
+    
+    if (!displayName || displayName.length < 1) {
+      renderError(output, 'Please enter your display name');
+      return;
+    }
+    
+    if (displayName.length > 100) {
+      renderError(output, 'Display name must be 100 characters or less');
+      return;
+    }
+    
+    // 5. Disable Inputs During Request (prevent double-submit)
+    submitButton.disabled = true;
+    codeInput.disabled = true;
+    nameInput.disabled = true;
+    showLoading(output, 'Joining session…');
+    
+    try {
+      // 6. Make API Call
+      const session = await joinSession(code, displayName);
+      
+      // 7. Store Data (optional)
+      sessionStorage.setItem('currentSession', JSON.stringify({
+        code: session.code,
+        displayName: displayName,
+        joinedAt: new Date().toISOString()
+      }));
+      
+      // 8. Show Success & Reset Form
+      renderJoinSuccess(output, session, displayName);
+      form.reset();
+      
+    } catch (error) {
+      // 9. Show User-Friendly Error
+      renderJoinError(output, error.message);
+    } finally {
+      // 10. Re-enable Inputs
+      submitButton.disabled = false;
+      codeInput.disabled = false;
+      nameInput.disabled = false;
+    }
+  });
+}
+```
+
+### Key Form Handling Principles
+
+1. **DOM Guards**: Check all elements exist before setup
+2. **Prevent Default**: Always `event.preventDefault()` on form submit
+3. **Client-Side Validation**: Validate before API call to save bandwidth
+4. **Trim Input**: Use `.trim()` to remove whitespace
+5. **Disable During Request**: Prevent double-submission
+6. **Loading Feedback**: Show loading state immediately
+7. **Error Mapping**: Convert technical errors to user-friendly messages
+8. **Form Reset**: Clear inputs after success
+9. **Finally Block**: Always re-enable inputs, even on error
+
+See `public/js/ui.js` → `setupJoinSession()` for complete implementation.
+
+---
+
 ## Loading States & UX
 
 Always provide feedback during async operations:
@@ -304,8 +402,9 @@ app.add_middleware(
 | Check health | `checkHealth()` | `js/api.js` |
 | Fetch sessions | `fetchSessions(limit)` | `js/api.js` |
 | Create session | `createSession(data)` | `js/api.js` |
-| Join session* | `joinSession(code, displayName)` | `js/api.js` (pending) |
-| Show loading | `showLoading(element)` | `js/ui.js` |
+| Join session | `joinSession(code, displayName)` | `js/api.js` |
+| Show loading | `showLoading(element, message?)` | `js/ui.js` |
 | Show error | `renderError(element, msg)` | `js/ui.js` |
+| Render join success | `renderJoinSuccess(element, session, displayName)` | `js/ui.js` |
+| Render join error | `renderJoinError(element, errorMessage)` | `js/ui.js` |
 
-\* Backend endpoint available (`POST /sessions/{code}/join`), frontend implementation pending.
