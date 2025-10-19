@@ -8,14 +8,17 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 - **Authentication**: Not required for MVP; users provide a display name when creating or joining a session.
 - **Scale expectations**: ~50 concurrent users across multiple sessions.
 
-## Current Capabilities (2025-10-17)
+## Current Capabilities (2025-10-19)
 - Docker Compose stack for FastAPI (`swampninjas`) and PostgreSQL with migrations automatically applied at container startup.
 - `/health` endpoint returning an API heartbeat and serving `frontend/public/index.html` at the root with a "Press me" demo button.
 - `/db/ping` endpoint that exercises PostgreSQL via the repository/service layer and reports insert counts.
 - `POST /sessions` endpoint for creating classroom sessions, enforcing host limits, and returning a summary payload.
 - `GET /sessions` endpoint for listing recent joinable sessions with optional limit parameter.
 - `POST /sessions/{code}/join` endpoint for joining sessions as participants with automatic user creation and role management.
-- Comprehensive test suite (50 tests) covering repository, service, API, and integration layers.
+- `GET /sessions/{code}` endpoint for retrieving full session details (code, status, host, created_at).
+- `GET /sessions/{code}/participants` endpoint for fetching the participant roster with host-first ordering and join timestamps.
+- `GET /sessions/{code}/questions` endpoint for listing session questions with optional status filtering and author summaries.
+- Comprehensive test suite (84 tests) covering repository, service, API, and integration layers.
 - Project documentation including development workflow, dev journal, API specifications, and layered directory READMEs.
 
 ## Roadmap Highlights
