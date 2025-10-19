@@ -83,3 +83,48 @@ async function createSession(sessionData) {
   
   return await response.json();
 }
+
+/**
+ * Join an existing session as a participant.
+ * 
+ * @param {string} code - The 6-character session join code
+ * @param {string} displayName - The participant's display name (1-100 chars)
+ * @returns {Promise<Object>} Session summary object
+ * @throws {Error} If the request fails or returns non-2xx status
+ * 
+ * @example
+ * const session = await joinSession('ABC123', 'Student Alice');
+ * console.log(session.title); // "Physics 301"
+ */
+async function joinSession(code, displayName) {
+  const response = await fetch(`${API_BASE_URL}/sessions/${code}/join`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      display_name: displayName
+    })
+  });
+  
+  if (!response.ok) {
+    // Extract error detail from response body if available
+    const errorData = await response.json().catch(() => ({}));
+    let message = `HTTP ${response.status}`;
+    
+    // Handle both string and array formats (422 returns array)
+    if (errorData.detail) {
+      if (Array.isArray(errorData.detail)) {
+        // Pydantic validation errors return array of objects
+        message = errorData.detail[0]?.msg || JSON.stringify(errorData.detail);
+      } else {
+        // Other errors return string
+        message = errorData.detail;
+      }
+    }
+    
+    throw new Error(message);
+  }
+  
+  return await response.json();
+}
