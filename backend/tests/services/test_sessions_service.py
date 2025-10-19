@@ -5,6 +5,8 @@ import pytest # type: ignore
 
 from app.repositories import create_user, get_participant, insert_session
 from app.schemas.sessions import SessionSummary
+from app.schemas.session_participants import SessionParticipantSummary
+from app.schemas.questions import QuestionSummary
 from app.services.sessions import (
     HOST_SESSION_LIMIT,
     HostSessionLimitError,
@@ -334,3 +336,281 @@ def test_join_session_returns_complete_summary() -> None:
     assert result.status in ("draft", "active", "ended")
     assert result.host.display_name == "Dr. Complete"
     assert result.created_at is not None
+
+
+# Get Session Details Tests
+
+
+def test_get_session_details_returns_complete_summary() -> None:
+    """Test retrieving session details by code returns complete SessionSummary."""
+    
+    service = SessionService(connection_provider=_connection_provider())
+    
+    # Create a session
+    created = service.create_session(title="Physics 101", host_display_name="Dr. Newton")
+    
+    # Retrieve by code
+    result = service.get_session_details(code=created.code)
+    
+    # Verify complete summary returned
+    assert isinstance(result, SessionSummary)
+    assert result.id == created.id
+    assert result.code == created.code
+    assert result.title == "Physics 101"
+    assert result.status == "draft"
+    assert result.host.display_name == "Dr. Newton"
+    assert result.created_at == created.created_at
+
+
+def test_get_session_details_raises_error_for_invalid_code() -> None:
+    """Test retrieving non-existent session raises SessionNotFoundError."""
+    
+    service = SessionService(connection_provider=_connection_provider())
+    
+    with pytest.raises(SessionNotFoundError) as exc_info:
+        service.get_session_details(code="INVALID")
+    
+    assert "Session not found" in str(exc_info.value)
+
+
+# Get Session Participants Tests
+
+
+def test_get_session_participants_returns_empty_for_no_participants() -> None:
+    """Test retrieving participants for session with none returns empty list."""
+    
+    service = SessionService(connection_provider=_connection_provider())
+    
+    # Create session (host not added as participant)
+    dsn = get_psycopg_dsn()
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        host = create_user(conn, "Lonely Host")
+        session = insert_session(
+            conn,
+            host_user_id=host["id"],
+            title="Empty Session",
+            code="EMPTY1",
+        )
+    
+    # Retrieve participants
+    result = service.get_session_participants(code=session["code"])
+    
+    assert result == []
+
+
+def test_get_session_participants_returns_all_with_user_data() -> None:
+    """Test retrieving participants returns complete list with user summaries."""
+    
+    service = SessionService(connection_provider=_connection_provider())
+    
+    # Create session with participants
+    session = service.create_session(title="Popular Class", host_display_name="Dr. Popular")
+    service.join_session(code=session.code, display_name="Alice")
+    service.join_session(code=session.code, display_name="Bob")
+    
+    # Retrieve participants
+    result = service.get_session_participants(code=session.code)
+    
+    assert len(result) == 3  # Host + 2 participants
+    assert all(isinstance(p, SessionParticipantSummary) for p in result)
+    
+    # Verify host is first
+    assert result[0].role == "host"
+    assert result[0].user.display_name == "Dr. Popular"
+    
+    # Verify participants follow
+    participant_names = [p.user.display_name for p in result[1:]]
+    assert "Alice" in participant_names
+    assert "Bob" in participant_names
+
+
+def test_get_session_participants_raises_error_for_invalid_code() -> None:
+    """Test retrieving participants for non-existent session raises error."""
+    
+    service = SessionService(connection_provider=_connection_provider())
+    
+    with pytest.raises(SessionNotFoundError) as exc_info:
+        service.get_session_participants(code="INVALID")
+    
+    assert "Session not found" in str(exc_info.value)
+
+
+def test_get_session_participants_ordered_correctly() -> None:
+    """Test participants are ordered with host first, then by join time."""
+    
+    service = SessionService(connection_provider=_connection_provider())
+    
+    # Create session
+    session = service.create_session(title="Ordered Session", host_display_name="Dr. Host")
+    
+    # Join in specific order
+    service.join_session(code=session.code, display_name="First Joiner")
+    service.join_session(code=session.code, display_name="Second Joiner")
+    
+    # Retrieve participants
+    result = service.get_session_participants(code=session.code)
+    
+    # Host should be first
+    assert result[0].role == "host"
+    assert result[0].user.display_name == "Dr. Host"
+    
+    # Participants should be ordered by join time
+    assert result[1].user.display_name == "First Joiner"
+    assert result[2].user.display_name == "Second Joiner"
+
+
+# Get Session Questions Tests
+
+
+def test_get_session_questions_returns_empty_for_no_questions() -> None:
+    """Test retrieving questions for session with none returns empty list."""
+    
+    service = SessionService(connection_provider=_connection_provider())
+    
+    # Create session
+    session = service.create_session(title="No Questions", host_display_name="Dr. Empty")
+    
+    # Retrieve questions
+    result = service.get_session_questions(code=session.code)
+    
+    assert result == []
+
+
+def test_get_session_questions_returns_all_with_author_data() -> None:
+    """Test retrieving questions returns complete list with author summaries."""
+    
+    dsn = get_psycopg_dsn()
+    service = SessionService(connection_provider=_connection_provider())
+    
+    # Create session
+    session = service.create_session(title="Q&A Session", host_display_name="Dr. Host")
+    
+    # Create users and add questions directly
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        author1 = create_user(conn, "Alice")
+        author2 = create_user(conn, "Bob")
+        
+        # Get session from DB
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM sessions WHERE code = %s", (session.code,))
+            session_id = cur.fetchone()[0]
+        
+        # Insert questions
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO questions (session_id, author_user_id, body, status, likes)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (session_id, author1["id"], "Question from Alice", "pending", 5),
+            )
+            cur.execute(
+                """
+                INSERT INTO questions (session_id, author_user_id, body, status, likes)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (session_id, author2["id"], "Question from Bob", "answered", 3),
+            )
+    
+    # Retrieve questions
+    result = service.get_session_questions(code=session.code)
+    
+    assert len(result) == 2
+    assert all(isinstance(q, QuestionSummary) for q in result)
+    
+    # Verify author data is included
+    authors = {q.author.display_name for q in result if q.author}
+    assert "Alice" in authors
+    assert "Bob" in authors
+
+
+def test_get_session_questions_handles_null_author() -> None:
+    """Test questions with NULL author are handled correctly."""
+    
+    dsn = get_psycopg_dsn()
+    service = SessionService(connection_provider=_connection_provider())
+    
+    # Create session
+    session = service.create_session(title="Anonymous Session", host_display_name="Dr. Host")
+    
+    # Add anonymous question
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM sessions WHERE code = %s", (session.code,))
+            session_id = cur.fetchone()[0]
+        
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO questions (session_id, author_user_id, body, status)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (session_id, None, "Anonymous question", "pending"),
+            )
+    
+    # Retrieve questions
+    result = service.get_session_questions(code=session.code)
+    
+    assert len(result) == 1
+    assert result[0].body == "Anonymous question"
+    assert result[0].author is None
+
+
+def test_get_session_questions_filters_by_status() -> None:
+    """Test questions can be filtered by status."""
+    
+    dsn = get_psycopg_dsn()
+    service = SessionService(connection_provider=_connection_provider())
+    
+    # Create session
+    session = service.create_session(title="Filtered Session", host_display_name="Dr. Host")
+    
+    # Add questions with different statuses
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        author = create_user(conn, "Student")
+        
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM sessions WHERE code = %s", (session.code,))
+            session_id = cur.fetchone()[0]
+        
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO questions (session_id, author_user_id, body, status)
+                VALUES 
+                    (%s, %s, %s, %s),
+                    (%s, %s, %s, %s),
+                    (%s, %s, %s, %s)
+                """,
+                (
+                    session_id, author["id"], "Pending 1", "pending",
+                    session_id, author["id"], "Answered", "answered",
+                    session_id, author["id"], "Pending 2", "pending",
+                ),
+            )
+    
+    # Filter for pending
+    pending_result = service.get_session_questions(code=session.code, status="pending")
+    assert len(pending_result) == 2
+    assert all(q.status == "pending" for q in pending_result)
+    
+    # Filter for answered
+    answered_result = service.get_session_questions(code=session.code, status="answered")
+    assert len(answered_result) == 1
+    assert answered_result[0].status == "answered"
+    
+    # No filter returns all
+    all_result = service.get_session_questions(code=session.code)
+    assert len(all_result) == 3
+
+
+def test_get_session_questions_raises_error_for_invalid_code() -> None:
+    """Test retrieving questions for non-existent session raises error."""
+    
+    service = SessionService(connection_provider=_connection_provider())
+    
+    with pytest.raises(SessionNotFoundError) as exc_info:
+        service.get_session_questions(code="INVALID")
+    
+    assert "Session not found" in str(exc_info.value)
+
