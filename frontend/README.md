@@ -7,13 +7,16 @@ Web client for ClassEngage built with vanilla HTML, CSS, and JavaScript.
 ```
 frontend/
 ├── public/           # Static assets served by FastAPI
-│   ├── index.html    # Main entry point
+│   ├── index.html    # Home page
+│   ├── session.html  # Session detail page
 │   ├── css/
 │   │   └── styles.css     # Application styles
 │   └── js/
 │       ├── utils.js       # Helper functions (escapeHtml, etc.)
+│       ├── components.js  # Reusable form builders
 │       ├── api.js         # API layer (fetch wrappers)
-│       └── ui.js          # DOM manipulation & event handlers
+│       ├── ui.js          # Home page logic & event handlers
+│       └── session.js     # Session page logic & rendering
 └── README.md         # This file
 ```
 
@@ -38,11 +41,14 @@ docker compose up
 
 ## Key Files
 
-- `public/index.html` - Clean semantic markup
-- `public/css/styles.css` - All application styles (layout, components, utilities)
+- `public/index.html` - Home page with create/join forms
+- `public/session.html` - Session detail page with participant roster and questions
+- `public/css/styles.css` - All application styles (layout, components, session page, utilities)
 - `public/js/utils.js` - Pure functions (HTML escaping, etc.)
-- `public/js/api.js` - Centralized API communication (checkHealth, fetchSessions, etc.)
-- `public/js/ui.js` - Event handlers and DOM rendering logic
+- `public/js/components.js` - Reusable form builders
+- `public/js/api.js` - Centralised API communication (session creation, join, details, participants, questions)
+- `public/js/ui.js` - Home page event handlers and DOM rendering
+- `public/js/session.js` - Session page rendering, filtering, and parallel data loading
 
 ## Developer Guide
 
