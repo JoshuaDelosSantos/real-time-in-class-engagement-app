@@ -8,7 +8,8 @@ from .sessions import (
 	count_active_sessions_for_host,
 	list_sessions,
 )
-from .session_participants import add_participant, get_participant
+from .session_participants import add_participant, get_participant, list_session_participants
+from .questions import list_session_questions
 
 __all__ = [
 	"create_user",
@@ -21,4 +22,6 @@ __all__ = [
 	"list_sessions",
 	"add_participant",
 	"get_participant",
+	"list_session_participants",
+	"list_session_questions",
 ]
