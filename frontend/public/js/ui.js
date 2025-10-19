@@ -15,6 +15,7 @@ function initializeApp() {
   setupSessionsFetch();
   setupCreateSession();
   setupJoinSession();
+  checkActiveSession();
 }
 
 /**
@@ -354,10 +355,14 @@ function renderCreateSuccess(element, session) {
         <p><strong>Status:</strong> ${escapeHtml(session.status)}</p>
       </div>
       <div class="next-steps">
-        Share the session code above with your students to let them join!
+        <p>Share the session code above with your students to let them join!</p>
+        <a href="/static/session.html?code=${escapeHtml(session.code)}" class="button">View Session</a>
       </div>
     </div>
   `;
+  
+  // Store session in sessionStorage
+  sessionStorage.setItem('currentSession', JSON.stringify(session));
 }
 
 /**
@@ -399,9 +404,14 @@ function renderJoinSuccess(element, session, displayName) {
         <p><strong>Your name:</strong> ${escapeHtml(displayName)}</p>
         <p><strong>Status:</strong> ${escapeHtml(session.status)}</p>
       </div>
-      <p class="next-steps">You're now a participant in this session. Question submission coming soon!</p>
+      <p class="next-steps">
+        <a href="/static/session.html?code=${escapeHtml(session.code)}" class="button">Go to Session</a>
+      </p>
     </div>
   `;
+  
+  // Store session in sessionStorage
+  sessionStorage.setItem('currentSession', JSON.stringify(session));
 }
 
 /**
@@ -425,6 +435,34 @@ function renderJoinError(element, errorMessage) {
       <p>${escapeHtml(displayMessage)}</p>
     </div>
   `;
+}
+
+/**
+ * Check for active session in sessionStorage and display "Continue Session" button.
+ */
+function checkActiveSession() {
+  const sessionSection = document.getElementById('active-session-section');
+  const sessionInfo = document.getElementById('active-session-info');
+  
+  if (!sessionSection || !sessionInfo) return;
+  
+  const sessionData = sessionStorage.getItem('currentSession');
+  if (!sessionData) return;
+  
+  try {
+    const session = JSON.parse(sessionData);
+    sessionSection.style.display = 'block';
+    sessionInfo.innerHTML = `
+      <div class="session-card">
+        <div class="session-title">${escapeHtml(session.title)}</div>
+        <div class="session-meta">Code: ${escapeHtml(session.code)}</div>
+        <a href="/static/session.html?code=${escapeHtml(session.code)}" class="button">Continue Session</a>
+      </div>
+    `;
+  } catch (error) {
+    console.error('Failed to parse session data:', error);
+    sessionStorage.removeItem('currentSession');
+  }
 }
 
 // Initialize when DOM is ready
