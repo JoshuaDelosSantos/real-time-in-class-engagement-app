@@ -18,9 +18,13 @@ from app.repositories import (
     get_user_by_display_name,
     get_user_by_id,
     insert_session,
+    list_session_participants,
+    list_session_questions,
     list_sessions,
 )
 from app.schemas.sessions import SessionSummary
+from app.schemas.session_participants import SessionParticipantSummary
+from app.schemas.questions import QuestionSummary
 from app.schemas.users import UserSummary
 
 
@@ -160,6 +164,118 @@ class SessionService:
                 )
                 for row in session_rows
             ]
+
+    def get_session_details(self, *, code: str) -> SessionSummary:
+        """Retrieve session details by join code.
+        
+        Args:
+            code: The session join code
+            
+        Returns:
+            SessionSummary with session and host details
+            
+        Raises:
+            SessionNotFoundError: Session code doesn't exist
+        """
+        with self.connection_provider() as conn:
+            # Look up session by code
+            session = get_session_by_code(conn, code)
+            if not session:
+                raise SessionNotFoundError("Session not found")
+            
+            # Fetch host details for response
+            host = get_user_by_id(conn, session["host_user_id"])
+        
+        return SessionSummary(
+            id=session["id"],
+            code=session["code"],
+            title=session["title"],
+            status=session["status"],
+            host=UserSummary(id=host["id"], display_name=host["display_name"]),
+            created_at=session["created_at"],
+        )
+
+    def get_session_participants(self, *, code: str) -> list[SessionParticipantSummary]:
+        """Retrieve participant roster for a session.
+        
+        Args:
+            code: The session join code
+            
+        Returns:
+            List of SessionParticipantSummary with participant and user details
+            
+        Raises:
+            SessionNotFoundError: Session code doesn't exist
+        """
+        with self.connection_provider() as conn:
+            # Look up session by code
+            session = get_session_by_code(conn, code)
+            if not session:
+                raise SessionNotFoundError("Session not found")
+            
+            # Fetch participant records
+            participant_rows = list_session_participants(conn, session["id"])
+        
+        # Map to SessionParticipantSummary with embedded UserSummary
+        return [
+            SessionParticipantSummary(
+                user=UserSummary(
+                    id=row["user_id"],
+                    display_name=row["display_name"]
+                ),
+                role=row["role"],
+                joined_at=row["joined_at"],
+            )
+            for row in participant_rows
+        ]
+
+    def get_session_questions(
+        self,
+        *,
+        code: str,
+        status: str | None = None,
+    ) -> list[QuestionSummary]:
+        """Retrieve questions for a session.
+        
+        Args:
+            code: The session join code
+            status: Optional status filter ("pending" or "answered")
+            
+        Returns:
+            List of QuestionSummary with question and author details
+            
+        Raises:
+            SessionNotFoundError: Session code doesn't exist
+        """
+        with self.connection_provider() as conn:
+            # Look up session by code
+            session = get_session_by_code(conn, code)
+            if not session:
+                raise SessionNotFoundError("Session not found")
+            
+            # Fetch question records
+            question_rows = list_session_questions(conn, session["id"], status_filter=status)
+        
+        # Map to QuestionSummary with embedded UserSummary (or None for anonymous)
+        return [
+            QuestionSummary(
+                id=row["id"],
+                session_id=row["session_id"],
+                body=row["body"],
+                status=row["status"],
+                likes=row["likes"],
+                author=(
+                    UserSummary(
+                        id=row["author_user_id"],
+                        display_name=row["author_display_name"]
+                    )
+                    if row["author_user_id"] is not None
+                    else None
+                ),
+                created_at=row["created_at"],
+            )
+            for row in question_rows
+        ]
 
     def join_session(self, *, code: str, display_name: str) -> SessionSummary:
         """Join a session using a code and display name.
