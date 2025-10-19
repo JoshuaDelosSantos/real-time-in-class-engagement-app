@@ -15,7 +15,8 @@ This guide covers essential patterns and best practices for building web UIs tha
 5. [Loading States & UX](#loading-states--ux)
 6. [HTTP Methods](#http-methods)
 7. [CORS Considerations](#cors-considerations)
-8. [Reusable Form Components](#reusable-form-components) ⭐ New
+8. [Reusable Form Components](#reusable-form-components)
+9. [Page Navigation & Session Continuity](#page-navigation--session-continuity)
 
 ---
 
@@ -621,15 +622,132 @@ See `public/js/ui.js` for complete implementations:
 |------|----------|------|
 | Escape HTML | `escapeHtml(text)` | `js/utils.js` |
 | Create form field | `createFormField(config)` | `js/components.js` ⭐ |
-| Create form section | `createFormSection(config)` | `js/components.js` ⭐ |
+| Create form section | `createFormSection(config)` | `js/components.js` |
 | Check health | `checkHealth()` | `js/api.js` |
 | Fetch sessions | `fetchSessions(limit)` | `js/api.js` |
 | Create session | `createSession(data)` | `js/api.js` |
 | Join session | `joinSession(code, displayName)` | `js/api.js` |
+| Get session details | `getSessionDetails(code)` | `js/api.js` ⭐ |
+| Get participants | `getSessionParticipants(code)` | `js/api.js` ⭐ |
+| Get questions | `getSessionQuestions(code, status?)` | `js/api.js` ⭐ |
 | Show loading | `showLoading(element, message?)` | `js/ui.js` |
 | Show error | `renderError(element, msg)` | `js/ui.js` |
 | Render join success | `renderJoinSuccess(element, session, displayName)` | `js/ui.js` |
 | Render join error | `renderJoinError(element, errorMessage)` | `js/ui.js` |
-| Render create success | `renderCreateSuccess(element, session)` | `js/ui.js` ⭐ |
-| Render create error | `renderCreateError(element, errorMessage)` | `js/ui.js` ⭐ |
+| Render create success | `renderCreateSuccess(element, session)` | `js/ui.js` |
+| Render create error | `renderCreateError(element, errorMessage)` | `js/ui.js` |
+
+---
+
+## Page Navigation & Session Continuity
+
+The app uses two pages: home (`index.html`) and session (`session.html`). Users automatically navigate between them with visual countdown feedback.
+
+### Auto-Redirect Pattern
+
+After creating or joining a session, users see a success message with a 2-second countdown before automatic redirect:
+
+```javascript
+function renderCreateSuccess(element, session) {
+  const sessionUrl = `/static/session.html?code=${escapeHtml(session.code)}`;
+  
+  element.innerHTML = `
+    <div class="success-message">
+      <h3>✓ Session Created!</h3>
+      <p id="redirect-countdown">Redirecting in <strong>2</strong> seconds...</p>
+      <a href="${sessionUrl}" class="button">Go Now</a>
+    </div>
+  `;
+  
+  // Store session for continuity
+  sessionStorage.setItem('currentSession', JSON.stringify(session));
+  
+  // Auto-redirect with countdown (use setTimeout to ensure DOM updated)
+  setTimeout(() => {
+    let countdown = 2;
+    const countdownElement = element.querySelector('#redirect-countdown');
+    
+    if (!countdownElement) {
+      window.location.href = sessionUrl;
+      return;
+    }
+    
+    const interval = setInterval(() => {
+      countdown--;
+      if (countdown > 0) {
+        countdownElement.innerHTML = `Redirecting in <strong>${countdown}</strong> second${countdown !== 1 ? 's' : ''}...`;
+      } else {
+        countdownElement.innerHTML = 'Redirecting now...';
+      }
+    }, 1000);
+    
+    setTimeout(() => {
+      clearInterval(interval);
+      window.location.href = sessionUrl;
+    }, 2000);
+  }, 0);
+}
+```
+
+**Key Points:**
+- Use `element.querySelector()` not `document.getElementById()` to avoid ID conflicts
+- Wrap countdown in `setTimeout(..., 0)` to ensure DOM has updated
+- Provide "Go Now" button to skip countdown
+- Store session in sessionStorage for cross-page continuity
+
+### URL Query Parameters
+
+Session page reads the session code from URL query parameters:
+
+```javascript
+// In session.js
+async function initializeSessionPage() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  
+  if (!code) {
+    window.location.href = '/';  // Redirect to home if no code
+    return;
+  }
+  
+  // Load session data using code
+  const [session, participants, questions] = await Promise.all([
+    getSessionDetails(code),
+    getSessionParticipants(code),
+    getSessionQuestions(code)
+  ]);
+  
+  renderSessionHeader(session);
+  renderParticipantList(participants);
+  renderQuestionFeed(questions);
+}
+```
+
+### Session Continuity with sessionStorage
+
+Store active session to enable "Continue Session" functionality:
+
+```javascript
+// Store when creating/joining
+sessionStorage.setItem('currentSession', JSON.stringify({
+  code: session.code,
+  title: session.title,
+  createdAt: new Date().toISOString()
+}));
+
+// Restore on home page
+function checkActiveSession() {
+  const sessionData = sessionStorage.getItem('currentSession');
+  if (!sessionData) return;
+  
+  try {
+    const session = JSON.parse(sessionData);
+    displayContinueButton(session);
+  } catch (error) {
+    sessionStorage.removeItem('currentSession');
+  }
+}
+```
+
+See `public/js/ui.js` for complete implementation.
 
