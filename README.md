@@ -18,6 +18,7 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 - `GET /sessions/{code}` endpoint for retrieving full session details (code, status, host, created_at).
 - `GET /sessions/{code}/participants` endpoint for fetching the participant roster with host-first ordering and join timestamps.
 - `GET /sessions/{code}/questions` endpoint for listing session questions with optional status filtering and author summaries.
+- Dedicated session page UI (`session.html`) displaying participant roster, question feed with filtering, and automatic navigation with countdown timers.
 - Comprehensive test suite (84 tests) covering repository, service, API, and integration layers.
 - Project documentation including development workflow, dev journal, API specifications, and layered directory READMEs.
 
@@ -30,7 +31,7 @@ ClassEngage is a lightweight, real-time classroom engagement app (inspired by Ka
 ## Architecture Snapshot
 - **Backend**: FastAPI app with routers delegating to services and repositories; Pydantic schemas define API contracts.
 - **Persistence**: PostgreSQL (psycopg) with parameterised queries via repository helpers covering users, sessions, session participants, questions, and question votes.
-- **Frontend**: Static HTML/CSS prototype served by FastAPI; future-ready for a JS framework.
+- **Frontend**: Vanilla HTML/CSS/JS with modular architecture (home page + session page); automatic navigation and session continuity via sessionStorage.
 - **Infrastructure**: Dockerised services aimed at Azure VM deployment with minimal ops overhead.
 
 ## Repository Structure
