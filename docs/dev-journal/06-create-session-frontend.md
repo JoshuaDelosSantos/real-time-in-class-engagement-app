@@ -652,13 +652,6 @@ function initializeApp() {
 3. Students join session using code
 4. Session is active and ready for use
 
-**Total Time Investment:** ~2.5 hours
-- Phase 1: 45 minutes (components)
-- Phase 2: 30 minutes (refactor)
-- Phase 3: 45 minutes (create session)
-- Phase 4: 20 minutes (CSS)
-- Phase 5: 20 minutes (documentation)
-
 ---
 
 ## Next Steps
