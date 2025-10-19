@@ -309,4 +309,86 @@ Each phase follows: Repository → Service → API → Tests → Documentation
 
 ## Outcome
 
-(To be filled in after implementation)
+**Implementation Date**: 2025-10-19
+
+Successfully implemented all three GET endpoints for session details backend:
+
+### Completed Work
+
+**Phase 1: GET /sessions/{code}** ✅
+- Service method: `get_session_details()` reuses existing `get_session_by_code()` repository function
+- API route: Returns `SessionSummary` with host details
+- Tests: 2 service tests, 3 API tests (success, 404, schema validation)
+
+**Phase 2: GET /sessions/{code}/participants** ✅
+- Repository function: `list_session_participants()` with JOIN to users table
+- Ordering: CASE expression to ensure host appears first, then by join time
+- Service method: `get_session_participants()` maps to `SessionParticipantSummary`
+- API route: Returns participant roster array
+- Tests: 4 repository tests, 4 service tests, 4 API tests
+
+**Phase 3: GET /sessions/{code}/questions** ✅
+- New file: `backend/app/repositories/questions.py`
+- Repository function: `list_session_questions()` with LEFT JOIN for nullable authors
+- Service method: `get_session_questions()` handles NULL author mapping
+- API route: Supports optional `status` query parameter filtering
+- Tests: 6 repository tests, 5 service tests, 6 API tests
+
+### Test Coverage
+
+**Total Tests**: 84 passing (up from 55)
+- Repository layer: 10 session_participants tests, 6 questions tests
+- Service layer: 11 get methods tests (details, participants, questions)
+- API layer: 13 GET endpoint tests
+
+### Technical Decisions
+
+1. **Participant Ordering**: Used `CASE WHEN sp.role = 'host' THEN 0 ELSE 1 END` instead of `ORDER BY role DESC` because alphabetical DESC doesn't guarantee host-first ordering.
+
+2. **NULL Author Handling**: Implemented throughout stack:
+   - Repository: LEFT JOIN users (not INNER JOIN)
+   - Service: Conditional UserSummary creation (`if author_user_id is not None else None`)
+   - Tests: Explicit NULL author test cases at all layers
+
+3. **Query Parameter Naming**: Used `alias="status"` for FastAPI parameter to avoid shadowing imported `status` module (prevented `AttributeError: 'NoneType' object has no attribute 'HTTP_404_NOT_FOUND'`).
+
+4. **Repository Exports**: Updated `backend/app/repositories/__init__.py` to expose `list_session_participants` and `list_session_questions` for service layer imports.
+
+### Files Modified
+
+**Created**:
+- `backend/app/repositories/questions.py`
+- `backend/tests/repositories/test_questions.py`
+
+**Modified**:
+- `backend/app/repositories/session_participants.py` (added `list_session_participants`)
+- `backend/app/repositories/__init__.py` (exposed new functions)
+- `backend/app/services/sessions.py` (added 3 methods to SessionService)
+- `backend/app/api/routes/sessions.py` (added 3 GET endpoints)
+- `backend/tests/repositories/test_session_participants.py` (added 4 tests)
+- `backend/tests/services/test_sessions_service.py` (added 11 tests)
+- `backend/tests/api/test_sessions.py` (added 13 tests)
+
+### API Endpoints Now Available
+
+1. **GET /sessions/{code}** — Retrieve session details
+   - Response: SessionSummary
+   - Status: 200 (success), 404 (not found)
+
+2. **GET /sessions/{code}/participants** — Retrieve participant roster
+   - Response: Array of SessionParticipantSummary
+   - Ordering: Host first, then by join time
+   - Status: 200 (success, may be empty array), 404 (session not found)
+
+3. **GET /sessions/{code}/questions** — Retrieve question feed
+   - Query param: `status` (optional: "pending" or "answered")
+   - Response: Array of QuestionSummary (author may be null)
+   - Ordering: Newest first (created_at DESC)
+   - Status: 200 (success, may be empty array), 404 (session not found)
+
+### Next Steps
+
+- Phase 8: Build session page frontend UI using these endpoints
+- Phase 9: Implement question submission (POST /sessions/{code}/questions)
+- Documentation: Update API docs with new endpoints
+
