@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Session - ClassEngage</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="session-nav">
+      <a href="/" class="nav-link">← Back to Home</a>
+    </nav>
+
+    <!-- Session Header -->
+    <section class="session-header-container">
+      <div id="session-header">
+        <div class="loading-message">Loading session...</div>
+      </div>
+    </section>
+
+    <!-- Participants Section -->
+    <section>
+      <h2>Participants</h2>
+      <div id="participants-list">
+        <div class="loading-message">Loading participants...</div>
+      </div>
+    </section>
+
+    <!-- Questions Section -->
+    <section>
+      <div class="questions-header">
+        <h2>Questions</h2>
+        <div class="question-filters">
+          <button id="filter-all" class="filter-btn active">All</button>
+          <button id="filter-pending" class="filter-btn">Pending</button>
+          <button id="filter-answered" class="filter-btn">Answered</button>
+        </div>
+      </div>
+      <div id="questions-feed">
+        <div class="loading-message">Loading questions...</div>
+      </div>
+    </section>
+
+    <!-- Load scripts -->
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/session.js"></script>
+  </body>
+</html>
