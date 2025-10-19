@@ -13,6 +13,7 @@ function initializeApp() {
   renderDynamicForms();
   setupHealthCheck();
   setupSessionsFetch();
+  setupCreateSession();
   setupJoinSession();
 }
 
@@ -26,6 +27,32 @@ function renderDynamicForms() {
     console.warn('Dynamic forms container not found');
     return;
   }
+  
+  // Create Session Form
+  const createSessionHTML = createFormSection({
+    id: 'create-form',
+    title: 'Create a Session',
+    fields: [
+      {
+        id: 'session-title',
+        label: 'Session Title',
+        placeholder: 'e.g., Physics 101 - Lecture 3',
+        maxLength: 200,
+        helperText: 'Enter a descriptive title for your session (1-200 characters)'
+      },
+      {
+        id: 'host-name',
+        label: 'Your Name (Host)',
+        placeholder: 'e.g., Dr. Smith',
+        maxLength: 100,
+        helperText: 'This is how you\'ll appear as the session host (1-100 characters)'
+      }
+    ],
+    submitButtonText: 'Create Session',
+    submitButtonId: 'create-button',
+    outputId: 'create-output',
+    outputInitialText: 'Fill out the form above to create a new session'
+  });
   
   // Join Session Form (refactored from hardcoded HTML)
   const joinSessionHTML = createFormSection({
@@ -58,8 +85,8 @@ function renderDynamicForms() {
     outputInitialText: 'Enter a session code and your name to join'
   });
   
-  // Inject form
-  container.innerHTML = joinSessionHTML;
+  // Inject both forms
+  container.innerHTML = createSessionHTML + joinSessionHTML;
 }
 
 /**
@@ -104,6 +131,82 @@ function setupSessionsFetch() {
       renderError(output, error.message);
     } finally {
       button.disabled = false;
+    }
+  });
+}
+
+/**
+ * Set up the create session form and handler.
+ */
+function setupCreateSession() {
+  const form = document.getElementById('create-form');
+  const titleInput = document.getElementById('session-title');
+  const hostNameInput = document.getElementById('host-name');
+  const submitButton = document.getElementById('create-button');
+  const output = document.getElementById('create-output');
+  
+  // DOM guards
+  if (!form || !titleInput || !hostNameInput || !submitButton || !output) {
+    console.warn('Create session form elements not found, skipping setup');
+    return;
+  }
+  
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    
+    const title = titleInput.value.trim();
+    const hostName = hostNameInput.value.trim();
+    
+    // Validation
+    if (!title || title.length < 1) {
+      renderError(output, 'Please enter a session title');
+      return;
+    }
+    
+    if (title.length > 200) {
+      renderError(output, 'Session title must be 200 characters or less');
+      return;
+    }
+    
+    if (!hostName || hostName.length < 1) {
+      renderError(output, 'Please enter your name as host');
+      return;
+    }
+    
+    if (hostName.length > 100) {
+      renderError(output, 'Host name must be 100 characters or less');
+      return;
+    }
+    
+    // Disable during request
+    submitButton.disabled = true;
+    titleInput.disabled = true;
+    hostNameInput.disabled = true;
+    showLoading(output, 'Creating session…');
+    
+    try {
+      const session = await createSession({
+        title: title,
+        host_display_name: hostName
+      });
+      
+      // Store created session info
+      sessionStorage.setItem('createdSession', JSON.stringify({
+        code: session.code,
+        title: session.title,
+        hostName: hostName,
+        createdAt: new Date().toISOString()
+      }));
+      
+      renderCreateSuccess(output, session);
+      form.reset();
+      
+    } catch (error) {
+      renderCreateError(output, error.message);
+    } finally {
+      submitButton.disabled = false;
+      titleInput.disabled = false;
+      hostNameInput.disabled = false;
     }
   });
 }
@@ -229,6 +332,53 @@ function showLoading(element, message = 'Loading…') {
  */
 function renderError(element, message) {
   element.innerHTML = `<div class="error-message">Error: ${escapeHtml(message)}</div>`;
+}
+
+/**
+ * Render successful create session result.
+ * 
+ * @param {HTMLElement} element - Target element
+ * @param {Object} session - Created session object from API
+ */
+function renderCreateSuccess(element, session) {
+  element.innerHTML = `
+    <div class="success-message">
+      <h3>✓ Session Created!</h3>
+      <div class="session-code-display">
+        <p><strong>Session Code:</strong></p>
+        <p class="code-large">${escapeHtml(session.code)}</p>
+      </div>
+      <div class="session-details">
+        <p><strong>Title:</strong> ${escapeHtml(session.title)}</p>
+        <p><strong>Host:</strong> ${escapeHtml(session.host.display_name)}</p>
+        <p><strong>Status:</strong> ${escapeHtml(session.status)}</p>
+      </div>
+      <div class="next-steps">
+        Share the session code above with your students to let them join!
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Render create session error.
+ * 
+ * @param {HTMLElement} element - Target element
+ * @param {string} errorMessage - Error message from API
+ */
+function renderCreateError(element, errorMessage) {
+  const friendlyMessages = {
+    'Host has reached maximum active sessions limit (3)': 'You\'ve reached the maximum of 3 active sessions. Please end an existing session before creating a new one.',
+  };
+  
+  const displayMessage = friendlyMessages[errorMessage] || errorMessage;
+  
+  element.innerHTML = `
+    <div class="error-message">
+      <p><strong>Unable to create session</strong></p>
+      <p>${escapeHtml(displayMessage)}</p>
+    </div>
+  `;
 }
 
 /**
