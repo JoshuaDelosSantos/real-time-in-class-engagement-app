@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Join Session Function</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .test-section {
+      margin: 2rem 0;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      margin: 0.5rem 0.5rem 0.5rem 0;
+      cursor: pointer;
+    }
+    pre {
+      background: #f5f5f5;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    .success { color: #22c55e; }
+    .error { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>Test joinSession() Function</h1>
+  
+  <div class="test-section">
+    <h2>Setup</h2>
+    <p>Session Code: <strong>3J9WSV</strong> (from "Test Session for Join")</p>
+    <p>Backend: <span id="backend-status">Checking...</span></p>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 1: Successful Join</h2>
+    <button onclick="testSuccessfulJoin()">Run Test</button>
+    <pre id="test1-output">Click button to run test</pre>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 2: 422 Validation Error (Name Too Long)</h2>
+    <button onclick="testValidationError()">Run Test</button>
+    <pre id="test2-output">Click button to run test</pre>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 3: 404 Error (Invalid Code)</h2>
+    <button onclick="testNotFound()">Run Test</button>
+    <pre id="test3-output">Click button to run test</pre>
+  </div>
+
+  <div class="test-section">
+    <h2>Test 4: Idempotent Join (Same User Twice)</h2>
+    <button onclick="testIdempotentJoin()">Run Test</button>
+    <pre id="test4-output">Click button to run test</pre>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    // Check backend status
+    checkHealth()
+      .then(() => {
+        document.getElementById('backend-status').innerHTML = '<span class="success">✓ Connected</span>';
+      })
+      .catch((error) => {
+        document.getElementById('backend-status').innerHTML = '<span class="error">✗ Not connected: ' + error.message + '</span>';
+      });
+
+    async function testSuccessfulJoin() {
+      const output = document.getElementById('test1-output');
+      output.textContent = 'Running...';
+      
+      try {
+        const result = await joinSession('3J9WSV', 'Test Student Alice');
+        output.innerHTML = '<span class="success">✓ SUCCESS</span>\n\n' + JSON.stringify(result, null, 2);
+      } catch (error) {
+        output.innerHTML = '<span class="error">✗ ERROR</span>\n\n' + error.message;
+      }
+    }
+
+    async function testValidationError() {
+      const output = document.getElementById('test2-output');
+      output.textContent = 'Running...';
+      
+      try {
+        const longName = 'A'.repeat(101); // 101 characters (max is 100)
+        const result = await joinSession('3J9WSV', longName);
+        output.innerHTML = '<span class="error">✗ UNEXPECTED SUCCESS</span>\n\nShould have failed with 422 error\n\n' + JSON.stringify(result, null, 2);
+      } catch (error) {
+        // This is expected - check if error message is readable
+        const isReadable = !error.message.includes('[object Object]');
+        const status = isReadable ? '✓ SUCCESS' : '✗ FAILURE';
+        const statusClass = isReadable ? 'success' : 'error';
+        output.innerHTML = `<span class="${statusClass}">${status}</span>\n\nError message is ${isReadable ? 'READABLE' : 'NOT READABLE ([object Object])'}\n\nMessage: ${error.message}`;
+      }
+    }
+
+    async function testNotFound() {
+      const output = document.getElementById('test3-output');
+      output.textContent = 'Running...';
+      
+      try {
+        const result = await joinSession('XXXXXX', 'Test User');
+        output.innerHTML = '<span class="error">✗ UNEXPECTED SUCCESS</span>\n\nShould have failed with 404 error\n\n' + JSON.stringify(result, null, 2);
+      } catch (error) {
+        output.innerHTML = '<span class="success">✓ SUCCESS</span>\n\nGot expected 404 error\n\nMessage: ' + error.message;
+      }
+    }
+
+    async function testIdempotentJoin() {
+      const output = document.getElementById('test4-output');
+      output.textContent = 'Running...';
+      
+      try {
+        const result1 = await joinSession('3J9WSV', 'Same User');
+        const result2 = await joinSession('3J9WSV', 'Same User');
+        
+        const match = result1.id === result2.id && result1.code === result2.code;
+        const status = match ? '✓ SUCCESS' : '✗ FAILURE';
+        const statusClass = match ? 'success' : 'error';
+        
+        output.innerHTML = `<span class="${statusClass}">${status}</span>\n\nIdempotent join ${match ? 'works correctly' : 'failed - got different results'}\n\nFirst join:\n${JSON.stringify(result1, null, 2)}\n\nSecond join:\n${JSON.stringify(result2, null, 2)}`;
+      } catch (error) {
+        output.innerHTML = '<span class="error">✗ ERROR</span>\n\n' + error.message;
+      }
+    }
+  </script>
+</body>
+</html>
