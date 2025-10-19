@@ -7,6 +7,8 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, Query, status # type: ignore
 
 from app.schemas.sessions import SessionCreate, SessionJoinRequest, SessionSummary
+from app.schemas.session_participants import SessionParticipantSummary
+from app.schemas.questions import QuestionSummary
 from app.services import (
     HostSessionLimitError,
     InvalidHostDisplayNameError,
@@ -49,6 +51,52 @@ async def list_sessions(
 
     service = get_session_service()
     return service.get_recent_sessions(limit=limit)
+
+
+@router.get("/{code}", response_model=SessionSummary)
+async def get_session(code: str) -> SessionSummary:
+    """Retrieve session details by join code.
+    
+    Returns complete session information including host details.
+    """
+
+    service = get_session_service()
+    try:
+        return service.get_session_details(code=code)
+    except SessionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/{code}/participants", response_model=list[SessionParticipantSummary])
+async def get_participants(code: str) -> list[SessionParticipantSummary]:
+    """Retrieve participant roster for a session.
+    
+    Returns all participants ordered by role (host first), then join time.
+    """
+
+    service = get_session_service()
+    try:
+        return service.get_session_participants(code=code)
+    except SessionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.get("/{code}/questions", response_model=list[QuestionSummary])
+async def get_questions(
+    code: str,
+    question_status: Annotated[str | None, Query(alias="status", description="Filter by status (pending or answered)")] = None,
+) -> list[QuestionSummary]:
+    """Retrieve questions for a session.
+    
+    Returns questions ordered by creation time (newest first).
+    Optionally filter by status.
+    """
+
+    service = get_session_service()
+    try:
+        return service.get_session_questions(code=code, status=question_status)
+    except SessionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
 
 @router.post("/{code}/join", response_model=SessionSummary, status_code=status.HTTP_200_OK)
