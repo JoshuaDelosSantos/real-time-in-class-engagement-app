@@ -21,7 +21,7 @@ Implement frontend UI and JavaScript to enable participants to join a classroom 
 - Include display name input (1-100 chars)
 - Add submit button and output container
 
-### Phase 4: CSS Styling
+### Phase 4: CSS Styling ✅
 - Add form styles (`.form-group`, `.success-message`, `.session-details`) to `public/css/styles.css`
 - Reuse existing `.error-message` class (do NOT duplicate)
 - Ensure mobile responsiveness
