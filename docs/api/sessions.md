@@ -246,6 +246,8 @@ curl http://localhost:8000/sessions/X4TZQF
 
 Expect a `200` response with the session summary JSON payload when the session exists.
 
+**Frontend Integration**: The `getSessionDetails(code)` function in `js/api.js` wraps this endpoint. The `session.js` module calls it on page load to render the session header with title, status, and code.
+
 ---
 
 ## GET /sessions/{code}/participants
@@ -307,6 +309,8 @@ curl http://localhost:8000/sessions/X4TZQF/participants
 ```
 
 Expect a `200` response with the ordered participant list.
+
+**Frontend Integration**: The `getSessionParticipants(code)` function in `js/api.js` wraps this endpoint. The `session.js` module displays participants in a list, showing the host with a badge and participant count.
 
 ---
 
@@ -388,6 +392,8 @@ curl "http://localhost:8000/sessions/X4TZQF/questions?status=pending"
 ```
 
 Expect a `200` response with the filtered question list.
+
+**Frontend Integration**: The `getSessionQuestions(code, status)` function in `js/api.js` wraps this endpoint with optional status filtering. The `session.js` module provides filter buttons (All/Pending/Answered) to toggle between question views in the session feed.
 
 ---
 
