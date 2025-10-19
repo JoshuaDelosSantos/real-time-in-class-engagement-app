@@ -10,9 +10,56 @@
  * Call this when the DOM is ready.
  */
 function initializeApp() {
+  renderDynamicForms();
   setupHealthCheck();
   setupSessionsFetch();
   setupJoinSession();
+}
+
+/**
+ * Render dynamic form sections using component builders.
+ * Creates join session form (and future forms) using reusable components.
+ */
+function renderDynamicForms() {
+  const container = document.getElementById('dynamic-forms');
+  if (!container) {
+    console.warn('Dynamic forms container not found');
+    return;
+  }
+  
+  // Join Session Form (refactored from hardcoded HTML)
+  const joinSessionHTML = createFormSection({
+    id: 'join-form',
+    title: 'Join a Session',
+    fields: [
+      {
+        id: 'session-code',
+        label: 'Session Code',
+        placeholder: 'ABC123',
+        maxLength: 6,
+        pattern: '[A-Z0-9]{6}',
+        helperText: 'Enter the 6-character code provided by your instructor',
+        attrs: {
+          'style': 'text-transform: uppercase;',
+          'oninput': 'this.value = this.value.toUpperCase()'
+        }
+      },
+      {
+        id: 'display-name',
+        label: 'Your Display Name',
+        placeholder: 'Student Alice',
+        maxLength: 100,
+        helperText: 'This is how you\'ll appear to others (1-100 characters)'
+      }
+    ],
+    submitButtonText: 'Join Session',
+    submitButtonId: 'join-button',
+    outputId: 'join-output',
+    outputInitialText: 'Enter a session code and your name to join'
+  });
+  
+  // Inject form
+  container.innerHTML = joinSessionHTML;
 }
 
 /**
@@ -76,11 +123,6 @@ function setupJoinSession() {
     console.warn('Join session form elements not found, skipping setup');
     return;
   }
-  
-  // Live input transformation
-  codeInput.addEventListener('input', (event) => {
-    event.target.value = event.target.value.toUpperCase();
-  });
   
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
