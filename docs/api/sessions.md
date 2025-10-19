@@ -13,11 +13,14 @@ API documentation for frontend contributors integrating with the session creatio
 
 ## Endpoints
 
-| Method | Path                    | Description                                    |
-| ------ | ----------------------- | ---------------------------------------------- |
-| POST   | `/sessions`             | Create a new classroom session                 |
-| GET    | `/sessions`             | Retrieve recent joinable sessions              |
-| POST   | `/sessions/{code}/join` | Join a session as a participant                |
+| Method | Path                             | Description                                             |
+| ------ | -------------------------------- | ------------------------------------------------------- |
+| POST   | `/sessions`                      | Create a new classroom session                          |
+| GET    | `/sessions`                      | Retrieve recent joinable sessions                       |
+| GET    | `/sessions/{code}`               | Fetch detailed information for a single session         |
+| GET    | `/sessions/{code}/participants`  | Retrieve the session participant roster                 |
+| GET    | `/sessions/{code}/questions`     | Retrieve questions for a session (optionally filtered)  |
+| POST   | `/sessions/{code}/join`          | Join a session as a participant                         |
 
 ---
 
@@ -192,6 +195,199 @@ curl http://localhost:8000/sessions?limit=5
 ```
 
 Expect a `200` response with an array of session objects.
+
+---
+
+## GET /sessions/{code}
+
+Retrieve the full details for a single session using its join code.
+
+### Request
+
+- **Path Parameters**:
+  
+  | Parameter | Type   | Required | Notes                           |
+  | --------- | ------ | -------- | ------------------------------- |
+  | `code`    | string | Yes      | Six-character session join code |
+
+### Successful Response
+
+- **Status**: `200 OK`
+- **Body (JSON)**:
+  ```json
+  {
+    "id": 123,
+    "code": "X4TZQF",
+    "title": "Literature Seminar",
+    "status": "active",
+    "host": {
+      "id": 45,
+      "display_name": "Prof. Bloom"
+    },
+    "created_at": "2025-10-12T07:10:12.345678Z"
+  }
+  ```
+
+#### Response Fields
+
+The payload matches the `SessionSummary` structure used elsewhere in this guide.
+
+### Error Responses
+
+| Status | When it Occurs          | Body Example               |
+| ------ | ----------------------- | -------------------------- |
+| 404    | Session code not found  | `{ "detail": "Session not found" }` |
+
+### Testing Notes
+
+```bash
+curl http://localhost:8000/sessions/X4TZQF
+```
+
+Expect a `200` response with the session summary JSON payload when the session exists.
+
+---
+
+## GET /sessions/{code}/participants
+
+List every participant registered for a session. The host always appears first, followed by the remaining participants ordered by their join time.
+
+### Request
+
+- **Path Parameters**:
+  
+  | Parameter | Type   | Required | Notes                           |
+  | --------- | ------ | -------- | ------------------------------- |
+  | `code`    | string | Yes      | Six-character session join code |
+
+### Successful Response
+
+- **Status**: `200 OK`
+- **Body (JSON)**:
+  ```json
+  [
+    {
+      "id": 45,
+      "display_name": "Prof. Bloom",
+      "role": "host",
+      "joined_at": "2025-10-12T07:10:12.345678Z"
+    },
+    {
+      "id": 201,
+      "display_name": "Student Alice",
+      "role": "participant",
+      "joined_at": "2025-10-12T07:12:00.123456Z"
+    }
+  ]
+  ```
+
+#### Response Fields
+
+| Field         | Type   | Notes                                      |
+| ------------- | ------ | ------------------------------------------ |
+| `id`          | int    | Participant identifier                     |
+| `display_name`| string | Participant display name                   |
+| `role`        | string | Either `host` or `participant`             |
+| `joined_at`   | string | ISO 8601 timestamp in UTC in join order    |
+
+### Empty Result
+
+New sessions return a single entry for the host until additional participants join.
+
+### Error Responses
+
+| Status | When it Occurs          | Body Example               |
+| ------ | ----------------------- | -------------------------- |
+| 404    | Session code not found  | `{ "detail": "Session not found" }` |
+
+### Testing Notes
+
+```bash
+curl http://localhost:8000/sessions/X4TZQF/participants
+```
+
+Expect a `200` response with the ordered participant list.
+
+---
+
+## GET /sessions/{code}/questions
+
+Fetch the list of questions submitted for a session. Questions are sorted oldest-first and can be filtered by status.
+
+### Request
+
+- **Path Parameters**:
+  
+  | Parameter | Type   | Required | Notes                           |
+  | --------- | ------ | -------- | ------------------------------- |
+  | `code`    | string | Yes      | Six-character session join code |
+
+- **Query Parameters** (optional):
+  
+  | Parameter | Type   | Allowed Values       | Notes                                      |
+  | --------- | ------ | -------------------- | ------------------------------------------ |
+  | `status`  | string | `pending`, `answered`| Filter questions by moderation status      |
+
+### Successful Response
+
+- **Status**: `200 OK`
+- **Body (JSON)**:
+  ```json
+  [
+    {
+      "id": 301,
+      "body": "How will this impact the final exam?",
+      "status": "pending",
+      "created_at": "2025-10-12T07:13:11.654321Z",
+      "author": {
+        "id": 201,
+        "display_name": "Student Alice"
+      }
+    },
+    {
+      "id": 302,
+      "body": "Will slides be available afterwards?",
+      "status": "answered",
+      "created_at": "2025-10-12T07:14:05.000000Z",
+      "author": null
+    }
+  ]
+  ```
+
+#### Response Fields
+
+| Field             | Type   | Notes                                                          |
+| ----------------- | ------ | -------------------------------------------------------------- |
+| `id`              | int    | Question identifier                                            |
+| `body`            | string | Question text                                                  |
+| `status`          | string | Either `pending` or `answered`                                 |
+| `created_at`      | string | ISO 8601 timestamp in UTC                                      |
+| `author`          | object | Name and id of the submitter; `null` when no author is stored |
+| `author.id`       | int    | Present when the author exists                                 |
+| `author.display_name` | string | Present when the author exists                              |
+
+### Empty Result
+
+Returns an empty array when the session has no questions or none match the requested status filter.
+
+### Error Responses
+
+| Status | When it Occurs                  | Body Example               |
+| ------ | ------------------------------- | -------------------------- |
+| 404    | Session code not found          | `{ "detail": "Session not found" }` |
+| 422    | Invalid status filter provided  | `{ "detail": [...] }`     |
+
+### Testing Notes
+
+```bash
+# All questions
+curl http://localhost:8000/sessions/X4TZQF/questions
+
+# Only pending questions
+curl "http://localhost:8000/sessions/X4TZQF/questions?status=pending"
+```
+
+Expect a `200` response with the filtered question list.
 
 ---
 
