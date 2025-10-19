@@ -342,6 +342,8 @@ function renderError(element, message) {
  * @param {Object} session - Created session object from API
  */
 function renderCreateSuccess(element, session) {
+  const sessionUrl = `/static/session.html?code=${escapeHtml(session.code)}`;
+  
   element.innerHTML = `
     <div class="success-message">
       <h3>✓ Session Created!</h3>
@@ -356,13 +358,43 @@ function renderCreateSuccess(element, session) {
       </div>
       <div class="next-steps">
         <p>Share the session code above with your students to let them join!</p>
-        <a href="/static/session.html?code=${escapeHtml(session.code)}" class="button">View Session</a>
+        <p id="redirect-countdown">Redirecting to session in <strong>2</strong> seconds...</p>
+        <a href="${sessionUrl}" class="button">View Session Now</a>
       </div>
     </div>
   `;
   
   // Store session in sessionStorage
   sessionStorage.setItem('currentSession', JSON.stringify(session));
+  
+  // Auto-redirect with countdown (use setTimeout to ensure DOM is updated)
+  setTimeout(() => {
+    let countdown = 2;
+    const countdownElement = element.querySelector('#redirect-countdown');
+    
+    if (!countdownElement) {
+      console.warn('Countdown element not found, redirecting immediately');
+      window.location.href = sessionUrl;
+      return;
+    }
+    
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      if (countdownElement) {
+        if (countdown > 0) {
+          countdownElement.innerHTML = `Redirecting to session in <strong>${countdown}</strong> second${countdown !== 1 ? 's' : ''}...`;
+        } else {
+          countdownElement.innerHTML = 'Redirecting now...';
+        }
+      }
+    }, 1000);
+    
+    setTimeout(() => {
+      clearInterval(countdownInterval);
+      console.log('Redirecting to session page (create):', sessionUrl);
+      window.location.href = sessionUrl;
+    }, 2000);
+  }, 0);
 }
 
 /**
@@ -394,6 +426,8 @@ function renderCreateError(element, errorMessage) {
  * @param {string} displayName - User's display name
  */
 function renderJoinSuccess(element, session, displayName) {
+  const sessionUrl = `/static/session.html?code=${escapeHtml(session.code)}`;
+  
   element.innerHTML = `
     <div class="success-message">
       <h3>✓ Successfully joined!</h3>
@@ -405,13 +439,43 @@ function renderJoinSuccess(element, session, displayName) {
         <p><strong>Status:</strong> ${escapeHtml(session.status)}</p>
       </div>
       <p class="next-steps">
-        <a href="/static/session.html?code=${escapeHtml(session.code)}" class="button">Go to Session</a>
+        <span id="redirect-countdown">Redirecting to session in <strong>2</strong> seconds...</span><br>
+        <a href="${sessionUrl}" class="button">Go to Session Now</a>
       </p>
     </div>
   `;
   
   // Store session in sessionStorage
   sessionStorage.setItem('currentSession', JSON.stringify(session));
+  
+  // Auto-redirect with countdown (use setTimeout to ensure DOM is updated)
+  setTimeout(() => {
+    let countdown = 2;
+    const countdownElement = element.querySelector('#redirect-countdown');
+    
+    if (!countdownElement) {
+      console.warn('Countdown element not found, redirecting immediately');
+      window.location.href = sessionUrl;
+      return;
+    }
+    
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      if (countdownElement) {
+        if (countdown > 0) {
+          countdownElement.innerHTML = `Redirecting to session in <strong>${countdown}</strong> second${countdown !== 1 ? 's' : ''}...`;
+        } else {
+          countdownElement.innerHTML = 'Redirecting now...';
+        }
+      }
+    }, 1000);
+    
+    setTimeout(() => {
+      clearInterval(countdownInterval);
+      console.log('Redirecting to session page (join):', sessionUrl);
+      window.location.href = sessionUrl;
+    }, 2000);
+  }, 0);
 }
 
 /**
