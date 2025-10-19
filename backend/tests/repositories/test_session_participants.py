@@ -10,6 +10,7 @@ from app.repositories import (
     create_user,
     get_participant,
     insert_session,
+    list_session_participants,
 )
 
 
@@ -228,3 +229,153 @@ def test_get_participant_returns_none_for_wrong_session(db_connection) -> None:
     )
 
     assert result is None
+
+
+# List Session Participants Tests
+
+
+def test_list_session_participants_returns_empty_for_no_participants(db_connection) -> None:
+    """Test listing participants returns empty list when none exist."""
+
+    host = create_user(db_connection, "Lonely Host")
+    session = insert_session(
+        db_connection,
+        host_user_id=host["id"],
+        title="Empty Session",
+        code="EMPTY1",
+    )
+
+    # Don't add any participants
+    result = list_session_participants(db_connection, session["id"])
+
+    assert result == []
+
+
+def test_list_session_participants_returns_all_participants(db_connection) -> None:
+    """Test listing participants returns all participant records with user data."""
+
+    host = create_user(db_connection, "Dr. Host")
+    participant1 = create_user(db_connection, "Alice")
+    participant2 = create_user(db_connection, "Bob")
+
+    session = insert_session(
+        db_connection,
+        host_user_id=host["id"],
+        title="Popular Session",
+        code="POP123",
+    )
+
+    # Add host as participant
+    add_participant(
+        db_connection,
+        session_id=session["id"],
+        user_id=host["id"],
+        role="host",
+    )
+
+    # Add participants
+    add_participant(
+        db_connection,
+        session_id=session["id"],
+        user_id=participant1["id"],
+        role="participant",
+    )
+    add_participant(
+        db_connection,
+        session_id=session["id"],
+        user_id=participant2["id"],
+        role="participant",
+    )
+
+    result = list_session_participants(db_connection, session["id"])
+
+    assert len(result) == 3
+    # Verify all records have required fields
+    for record in result:
+        assert "user_id" in record
+        assert "display_name" in record
+        assert "role" in record
+        assert "joined_at" in record
+
+
+def test_list_session_participants_orders_host_first(db_connection) -> None:
+    """Test participants are ordered with host first, then by join time."""
+
+    host = create_user(db_connection, "Dr. Host")
+    participant1 = create_user(db_connection, "Early Bird")
+    participant2 = create_user(db_connection, "Late Joiner")
+
+    session = insert_session(
+        db_connection,
+        host_user_id=host["id"],
+        title="Ordered Session",
+        code="ORDER1",
+    )
+
+    # Add participants in specific order
+    add_participant(
+        db_connection,
+        session_id=session["id"],
+        user_id=participant1["id"],
+        role="participant",
+    )
+    add_participant(
+        db_connection,
+        session_id=session["id"],
+        user_id=participant2["id"],
+        role="participant",
+    )
+    # Add host last to verify ordering isn't by insert time
+    add_participant(
+        db_connection,
+        session_id=session["id"],
+        user_id=host["id"],
+        role="host",
+    )
+
+    result = list_session_participants(db_connection, session["id"])
+
+    # Host should be first (role DESC)
+    assert result[0]["role"] == "host"
+    assert result[0]["display_name"] == "Dr. Host"
+
+    # Participants should follow, ordered by joined_at ASC
+    assert result[1]["display_name"] == "Early Bird"
+    assert result[2]["display_name"] == "Late Joiner"
+
+
+def test_list_session_participants_includes_user_details(db_connection) -> None:
+    """Test participant records include joined user display names."""
+
+    host = create_user(db_connection, "Prof. Carter")
+    participant = create_user(db_connection, "Student Alice")
+
+    session = insert_session(
+        db_connection,
+        host_user_id=host["id"],
+        title="Test Session",
+        code="TEST99",
+    )
+
+    add_participant(
+        db_connection,
+        session_id=session["id"],
+        user_id=host["id"],
+        role="host",
+    )
+    add_participant(
+        db_connection,
+        session_id=session["id"],
+        user_id=participant["id"],
+        role="participant",
+    )
+
+    result = list_session_participants(db_connection, session["id"])
+
+    # Verify user data is included
+    assert any(r["display_name"] == "Prof. Carter" for r in result)
+    assert any(r["display_name"] == "Student Alice" for r in result)
+    
+    # Verify user_id matches
+    host_record = [r for r in result if r["role"] == "host"][0]
+    assert host_record["user_id"] == host["id"]
