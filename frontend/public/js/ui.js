@@ -100,9 +100,10 @@ function renderSessions(element, sessions) {
  * Show loading state in an element.
  * 
  * @param {HTMLElement} element - Target element
+ * @param {string} [message='Loading…'] - Loading message to display
  */
-function showLoading(element) {
-  element.innerHTML = '<div class="loading-message">Loading sessions…</div>';
+function showLoading(element, message = 'Loading…') {
+  element.innerHTML = `<div class="loading-message">${escapeHtml(message)}</div>`;
 }
 
 /**
