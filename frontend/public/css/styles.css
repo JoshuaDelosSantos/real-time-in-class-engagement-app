@@ -204,6 +204,28 @@ pre {
   color: #1e293b;
 }
 
+.session-code-display {
+  background: #dbeafe;
+  border: 2px solid #2563eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.session-code-display p {
+  margin: 0.25rem 0;
+}
+
+.code-large {
+  font-family: 'Courier New', monospace;
+  font-size: 2rem;
+  font-weight: bold;
+  color: #1e40af;
+  letter-spacing: 0.2rem;
+  user-select: all;
+}
+
 .next-steps {
   margin-top: 1rem;
   padding-top: 1rem;
