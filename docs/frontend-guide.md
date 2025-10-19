@@ -15,6 +15,7 @@ This guide covers essential patterns and best practices for building web UIs tha
 5. [Loading States & UX](#loading-states--ux)
 6. [HTTP Methods](#http-methods)
 7. [CORS Considerations](#cors-considerations)
+8. [Reusable Form Components](#reusable-form-components) ⭐ New
 
 ---
 
@@ -386,10 +387,230 @@ app.add_middleware(
 
 ---
 
+## Reusable Form Components
+
+The ClassEngage frontend uses **component builder functions** to generate HTML for forms dynamically, eliminating hardcoded HTML and ensuring consistency across the application.
+
+### Why Component Builders?
+
+**Problems with Hardcoded HTML:**
+- ❌ Duplication across multiple forms
+- ❌ Inconsistent styling and structure
+- ❌ Difficult to maintain (changes require editing HTML and JS)
+- ❌ No type safety or documentation
+
+**Benefits of Component Builders:**
+- ✅ DRY (Don't Repeat Yourself) - define structure once
+- ✅ Consistency - all forms use same HTML structure
+- ✅ Maintainability - change once, affects all forms
+- ✅ Type safety - JSDoc provides autocomplete
+- ✅ XSS protection - built-in escaping
+- ✅ No build tools - pure vanilla JavaScript
+
+### Component Functions
+
+See `public/js/components.js` for implementation.
+
+#### createFormField(config)
+
+Generates a single form field with label, input, and helper text.
+
+```javascript
+const fieldHTML = createFormField({
+  id: 'session-title',
+  label: 'Session Title',
+  placeholder: 'e.g., Physics 101',
+  maxLength: 200,
+  helperText: 'Enter a title (1-200 characters)',
+  required: true  // default: true
+});
+```
+
+**Generated HTML:**
+```html
+<div class="form-group">
+  <label for="session-title">Session Title</label>
+  <input type="text" id="session-title" placeholder="e.g., Physics 101" maxlength="200" required />
+  <small>Enter a title (1-200 characters)</small>
+</div>
+```
+
+**Configuration Options:**
+- `id` (required) - Input element ID
+- `label` (required) - Label text
+- `type` (optional, default: 'text') - Input type
+- `placeholder` (optional) - Placeholder text
+- `maxLength` (optional) - Maximum character length
+- `pattern` (optional) - Validation regex pattern
+- `required` (optional, default: true) - Whether field is required
+- `helperText` (optional) - Small text below input
+- `attrs` (optional) - Additional HTML attributes as object
+
+**Advanced: Custom Attributes**
+
+Use `attrs` for inline handlers or custom styling:
+
+```javascript
+createFormField({
+  id: 'session-code',
+  label: 'Session Code',
+  maxLength: 6,
+  attrs: {
+    'style': 'text-transform: uppercase;',
+    'oninput': 'this.value = this.value.toUpperCase()'
+  }
+});
+```
+
+#### createFormSection(config)
+
+Generates a complete form section with multiple fields, submit button, and output container.
+
+```javascript
+const formHTML = createFormSection({
+  id: 'create-form',
+  title: 'Create a Session',
+  fields: [
+    {
+      id: 'session-title',
+      label: 'Session Title',
+      placeholder: 'e.g., Physics 101',
+      maxLength: 200,
+      helperText: 'Enter a descriptive title'
+    },
+    {
+      id: 'host-name',
+      label: 'Your Name (Host)',
+      placeholder: 'e.g., Dr. Smith',
+      maxLength: 100,
+      helperText: 'This is how you\'ll appear as host'
+    }
+  ],
+  submitButtonText: 'Create Session',
+  submitButtonId: 'create-button',
+  outputId: 'create-output',
+  outputInitialText: 'Fill out the form to create a session'
+});
+
+// Inject into page
+document.getElementById('container').innerHTML = formHTML;
+```
+
+**Generated Structure:**
+```html
+<section>
+  <h2>Create a Session</h2>
+  <form id="create-form">
+    <!-- field 1 -->
+    <div class="form-group">...</div>
+    <!-- field 2 -->
+    <div class="form-group">...</div>
+    <button type="submit" id="create-button">Create Session</button>
+  </form>
+  <div id="create-output">Fill out the form to create a session</div>
+</section>
+```
+
+### Usage Pattern
+
+**Step 1: Define Form Configuration**
+
+```javascript
+function renderDynamicForms() {
+  const container = document.getElementById('dynamic-forms');
+  if (!container) return;
+  
+  const myFormHTML = createFormSection({
+    id: 'my-form',
+    title: 'My Form Title',
+    fields: [/* field configs */],
+    submitButtonText: 'Submit',
+    submitButtonId: 'my-button',
+    outputId: 'my-output',
+    outputInitialText: 'Initial message'
+  });
+  
+  container.innerHTML = myFormHTML;
+}
+```
+
+**Step 2: Set Up Event Handlers**
+
+```javascript
+function setupMyForm() {
+  const form = document.getElementById('my-form');
+  const input = document.getElementById('my-input');
+  const button = document.getElementById('my-button');
+  const output = document.getElementById('my-output');
+  
+  // DOM guards
+  if (!form || !input || !button || !output) {
+    console.warn('Form elements not found');
+    return;
+  }
+  
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    
+    // Validation
+    const value = input.value.trim();
+    if (!value) {
+      renderError(output, 'Please enter a value');
+      return;
+    }
+    
+    // Disable during request
+    button.disabled = true;
+    input.disabled = true;
+    showLoading(output, 'Processing…');
+    
+    try {
+      const result = await myApiCall(value);
+      renderSuccess(output, result);
+      form.reset();
+    } catch (error) {
+      renderError(output, error.message);
+    } finally {
+      button.disabled = false;
+      input.disabled = false;
+    }
+  });
+}
+```
+
+**Step 3: Initialize in Order**
+
+```javascript
+function initializeApp() {
+  renderDynamicForms();  // Create DOM elements first
+  setupMyForm();         // Then attach handlers
+}
+```
+
+### Best Practices
+
+1. **Always call renderDynamicForms() first** - DOM elements must exist before attaching event handlers
+2. **Use DOM guards** - Check if elements exist before accessing them
+3. **Validate on submit** - Check all inputs before making API calls
+4. **Disable during requests** - Prevent double-submission
+5. **Reset on success** - Clear form after successful submission
+6. **Escape user input** - `escapeHtml()` is built into component builders
+7. **Provide helpful messages** - Use `helperText` to guide users
+
+### Real-World Example
+
+See `public/js/ui.js` for complete implementations:
+- `renderDynamicForms()` - Defines create and join session forms
+- `setupCreateSession()` - Event handler for create form
+- `setupJoinSession()` - Event handler for join form
+
+---
+
 ## Additional Resources
 
 - **API Documentation:** See `docs/api/sessions.md` for endpoint specifications
 - **Code Examples:** Browse `public/js/` for working implementations
+- **Component Builders:** See `public/js/components.js` for implementation details
 - **MDN Web Docs:** [Fetch API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)
 
 ---
@@ -399,6 +620,8 @@ app.add_middleware(
 | Task | Function | File |
 |------|----------|------|
 | Escape HTML | `escapeHtml(text)` | `js/utils.js` |
+| Create form field | `createFormField(config)` | `js/components.js` ⭐ |
+| Create form section | `createFormSection(config)` | `js/components.js` ⭐ |
 | Check health | `checkHealth()` | `js/api.js` |
 | Fetch sessions | `fetchSessions(limit)` | `js/api.js` |
 | Create session | `createSession(data)` | `js/api.js` |
@@ -407,4 +630,6 @@ app.add_middleware(
 | Show error | `renderError(element, msg)` | `js/ui.js` |
 | Render join success | `renderJoinSuccess(element, session, displayName)` | `js/ui.js` |
 | Render join error | `renderJoinError(element, errorMessage)` | `js/ui.js` |
+| Render create success | `renderCreateSuccess(element, session)` | `js/ui.js` ⭐ |
+| Render create error | `renderCreateError(element, errorMessage)` | `js/ui.js` ⭐ |
 
