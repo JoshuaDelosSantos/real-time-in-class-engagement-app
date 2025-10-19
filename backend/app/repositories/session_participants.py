@@ -43,3 +43,29 @@ def get_participant(conn: psycopg.Connection, session_id: int, user_id: int) -> 
             (session_id, user_id),
         )
         return cur.fetchone()
+
+
+def list_session_participants(conn: psycopg.Connection, session_id: int) -> list[dict]:
+    """List all participants for a session with user details.
+    
+    Returns participants ordered by role (host first), then join time (earliest first).
+    """
+
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT 
+                sp.user_id,
+                u.display_name,
+                sp.role,
+                sp.joined_at
+            FROM session_participants sp
+            JOIN users u ON sp.user_id = u.id
+            WHERE sp.session_id = %s
+            ORDER BY 
+                CASE WHEN sp.role = 'host' THEN 0 ELSE 1 END,
+                sp.joined_at ASC
+            """,
+            (session_id,),
+        )
+        return cur.fetchall()
