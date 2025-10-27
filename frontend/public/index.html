@@ -2,35 +2,44 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LearnJCU Interactive</title>
-  <link rel="stylesheet" href="/static/css/styles.css" />
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="css/styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap"
+    rel="stylesheet">
 </head>
 
 <body>
-  <header>
-    <img src="/frontend/public/images/white_logo_icon.jpg" alt="JCU Icon">
-    <h1>Learn JCU Interactive</h1>
-  </header>
+  <div class="container">
 
-  <main>
+    <div class="index-logo">
 
-    <section>
-      <button id="join-session">Join Session</button>
-      <button id="start-session">Start Session</button>
-    </section>
-  </main>
+      <img src="images/white_logo_icon.png" alt="JCU Icon" class="jcu-main-logo">
+      <h1 class="learnjcu-heading">LearnJCU<br>Interactive</h1>
 
-  <footer>
-    <img src="/frontend/public/images/jcu_full_logo.png" alt="JCU Logo">
-  </footer>
+    </div>
 
-  <!-- Load scripts in dependency order: utils → components → api → ui -->
-  <script src="/static/js/utils.js"></script>
+    <div class="session-selection">
+      <button class="session-button join-session">Join Session</button>
+      <button class="session-button start-session">Start Session</button>
+    </div>
+
+
+    <footer>
+      <img src="images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
+    </footer>
+
+
+    <!-- Load scripts in dependency order: utils → components → api → ui -->
+    <!-- <script src="/static/js/utils.js"></script>
   <script src="/static/js/components.js"></script>
   <script src="/static/js/api.js"></script>
-  <script src="/static/js/ui.js"></script>
+  <script src="/static/js/ui.js"></script> -->
+
+  </div>
 </body>
 
 </html>
