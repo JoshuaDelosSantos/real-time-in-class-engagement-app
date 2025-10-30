@@ -20,6 +20,7 @@ API documentation for frontend contributors integrating with the session creatio
 | GET    | `/sessions/{code}`               | Fetch detailed information for a single session         |
 | GET    | `/sessions/{code}/participants`  | Retrieve the session participant roster                 |
 | GET    | `/sessions/{code}/questions`     | Retrieve questions for a session (optionally filtered)  |
+| POST   | `/sessions/{code}/questions`     | Submit a question to a session                          |
 | POST   | `/sessions/{code}/join`          | Join a session as a participant                         |
 
 ---
@@ -394,6 +395,105 @@ curl "http://localhost:8000/sessions/X4TZQF/questions?status=pending"
 Expect a `200` response with the filtered question list.
 
 **Frontend Integration**: The `getSessionQuestions(code, status)` function in `js/api.js` wraps this endpoint with optional status filtering. The `session.js` module provides filter buttons (All/Pending/Answered) to toggle between question views in the session feed.
+
+---
+
+## POST /sessions/{code}/questions
+
+Submit a question to a session. Users can submit up to 3 pending questions per session.
+
+### Request
+
+- **Path Parameters**:
+  
+  | Parameter | Type   | Required | Notes                           |
+  | --------- | ------ | -------- | ------------------------------- |
+  | `code`    | string | Yes      | Six-character session join code |
+
+- **Headers**: 
+  - `Content-Type: application/json`
+  - `X-User-Id: <user_id>` (required)
+  
+- **Body (JSON)**:
+  ```json
+  {
+    "body": "What is polymorphism?"
+  }
+  ```
+
+#### Body Fields
+
+| Field  | Type   | Required | Rules                          |
+| ------ | ------ | -------- | ------------------------------ |
+| `body` | string | Yes      | 1-280 characters; cannot be whitespace-only |
+
+### Successful Response
+
+- **Status**: `201 Created`
+- **Body (JSON)**:
+  ```json
+  {
+    "id": 303,
+    "session_id": 123,
+    "body": "What is polymorphism?",
+    "status": "pending",
+    "likes": 0,
+    "author": {
+      "id": 201,
+      "display_name": "Student Alice"
+    },
+    "created_at": "2025-10-30T14:22:10.123456Z"
+  }
+  ```
+
+#### Response Fields
+
+| Field             | Type   | Notes                                      |
+| ----------------- | ------ | ------------------------------------------ |
+| `id`              | int    | Question identifier                        |
+| `session_id`      | int    | Session identifier                         |
+| `body`            | string | Question text                              |
+| `status`          | string | Always `pending` for new questions         |
+| `likes`           | int    | Initialised to 0                           |
+| `author`          | object | Submitter details                          |
+| `author.id`       | int    | User identifier                            |
+| `author.display_name` | string | User display name                      |
+| `created_at`      | string | ISO 8601 timestamp in UTC                  |
+
+### Error Responses
+
+| Status | When it Occurs                               | Body Example |
+| ------ | -------------------------------------------- | ------------ |
+| 403    | User is not a participant in the session     | `{ "detail": "User must be a participant to submit questions" }` |
+| 404    | Session code does not exist                  | `{ "detail": "Session not found" }` |
+| 409    | User has 3 pending questions already         | `{ "detail": "User has 3 pending questions in this session. Cannot submit more." }` |
+| 409    | Session has ended                            | `{ "detail": "Session has ended and is no longer joinable" }` |
+| 422    | Missing X-User-Id header                     | `{ "detail": [ { "loc": ["header", "x-user-id"], "msg": "Field required", "type": "missing" } ] }` |
+| 422    | Body empty, whitespace-only, or exceeds 280 chars | `{ "detail": "Question body cannot be empty" }` |
+
+### Behaviour Notes
+
+- **Participant Requirement**: Users must join the session before submitting questions (returns 403 if not a participant).
+- **Question Limit**: Each user can have at most 3 pending questions per session. Answered questions don't count towards this limit.
+- **Session Status**: Questions cannot be submitted to ended sessions (returns 409).
+- **Validation**: Empty strings and whitespace-only bodies are rejected at the service layer with 422.
+
+### Testing Notes
+
+```bash
+# First join a session to become a participant
+curl -X POST http://localhost:8000/sessions/X4TZQF/join \
+  -H 'Content-Type: application/json' \
+  -d '{"display_name": "Student Alice"}'
+
+# Then submit a question with the user ID
+curl -X POST http://localhost:8000/sessions/X4TZQF/questions \
+  -H 'Content-Type: application/json' \
+  -H 'X-User-Id: 201' \
+  -d '{"body": "What is polymorphism?"}'
+```
+
+Expect a `201` response with the question summary JSON payload.
 
 ---
 

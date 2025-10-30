@@ -18,6 +18,7 @@ The backend now exposes a complete session detail surface for frontend consumers
 - `GET /sessions/{code}` — retrieve full session details including host summary.
 - `GET /sessions/{code}/participants` — fetch participant roster ordered host-first with join timestamps.
 - `GET /sessions/{code}/questions` — list session questions with optional status filtering and author information.
+- `POST /sessions/{code}/questions` — submit questions to a session (3 pending question limit per user).
 
 ## Running Tests
 Ensure the Docker stack is running (the API container named `swampninjas` needs access to the Postgres service). Then execute:
@@ -26,4 +27,4 @@ Ensure the Docker stack is running (the API container named `swampninjas` needs 
 docker compose exec swampninjas pytest
 ```
 
-The test suite covers repositories, services, API routes, and integration flows (84 tests as of 2025-10-19). The command above runs the full suite inside the container so database interactions occur against the live Postgres instance.
+The test suite covers repositories, services, API routes, and integration flows (98 tests as of 2025-10-30). The command above runs the full suite inside the container so database interactions occur against the live Postgres instance.
