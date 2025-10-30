@@ -7,6 +7,8 @@ from .sessions import (
 	InvalidHostDisplayNameError,
 	SessionNotFoundError,
 	SessionNotJoinableError,
+	NotParticipantError,
+	QuestionLimitExceededError,
 	get_session_service,
 )
 
@@ -17,5 +19,7 @@ __all__ = [
 	"InvalidHostDisplayNameError",
 	"SessionNotFoundError",
 	"SessionNotJoinableError",
+	"NotParticipantError",
+	"QuestionLimitExceededError",
 	"get_session_service",
 ]
