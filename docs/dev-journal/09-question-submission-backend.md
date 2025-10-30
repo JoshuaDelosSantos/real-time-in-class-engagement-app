@@ -2,49 +2,76 @@
 
 ## Goal
 
-Implement `POST /sessions/{code}/questions` endpoint allowing authenticated participants to submit questions with backend validation, storage, and retrieval.
+Implement `POST /sessions/{code}/questions` endpoint for question submission with backend validation, storage, and limit enforcement.
+
+**Note**: Question viewing (`GET /sessions/{code}/questions`) already exists and is fully functional.
 
 ## Scope
 
-**Backend Only**: Repository → Service → API layers with critical test coverage.
+**This Plan Implements**:
+- POST endpoint for question submission
+- Repository write operations (create, count)
+- Service layer validation and orchestration
+- Critical test coverage (14 tests)
 
-**Out of Scope**: Frontend UI, character counters, user ID tracking headers (defer to separate ticket).
+**Prerequisites** (Must be done first or in parallel):
+- Frontend must send `X-User-Id` header (user ID tracking not yet implemented)
+- Alternative: Accept `display_name` in request body as interim solution
+
+**Out of Scope**: 
+- Frontend UI, character counters
+- User ID tracking headers in join/create responses (separate effort)
+- Question editing/deletion
+- Host moderation features
 
 ## Current State
 
-- ✅ Database: `questions` table with indexes on `(session_id, status)` and `(session_id, likes DESC)`
-- ✅ Schema: `QuestionCreate` (1-280 chars), `QuestionSummary` with optional author
+- ✅ Database: `questions` table with indexes
+- ✅ Schemas: `QuestionCreate`, `QuestionSummary` 
 - ✅ Repository: `list_session_questions()` for reads
 - ✅ Service: `SessionService.get_session_questions()` for reads
-- ✅ API: `GET /sessions/{code}/questions` with status filtering
+- ✅ **API: `GET /sessions/{code}/questions` with status filtering (ALREADY IMPLEMENTED)**
 - ❌ **Missing**: Write operations (create question, enforce limits)
 
 ## Architecture Decisions
 
-### 1. User Identity via Header
+### 1. User Identity Strategy
 
-**Decision**: Accept `X-User-Id` header for MVP authentication.
-- **Why**: Frontend doesn't track user IDs yet; separates concerns
+**Problem**: Frontend doesn't track user IDs in sessionStorage yet.
+
+**Options**:
+1. **X-User-Id header** - Requires frontend changes (NOT backend-only)
+2. **display_name in body** - Look up user by name (extra query, name conflicts possible)
+3. **Block until frontend ready** - Delays feature
+
+**Decision**: **Option 1** - Accept `X-User-Id` header
+- **Why**: Clean separation, matches future auth pattern
+- **Caveat**: Frontend must be updated to send this header (see Prerequisites)
+- **Interim**: Frontend team must implement user ID tracking FIRST or in parallel
 - **Validation**: FastAPI `Header()` with 422 on missing/invalid
 - **Future**: Replace with JWT token when auth added
+
+**Truth**: This is NOT truly "backend only"—frontend changes are required for this endpoint to function.
 
 ### 2. Question Limit Enforcement
 
 **Decision**: Accept race condition for 3-question limit.
-- **Why**: Autocommit connections = no transactions. Fixing requires global refactor (84 tests affected).
-- **Mitigation**: Document with TODO, client-side button disabling
-- **Future**: Use `SELECT FOR UPDATE` when migrating to transactions
+- **Why**: Autocommit connections = no transactions. Fixing requires global refactor.
+- **Mitigation**: Document with TODO comment at count check, client-side button disabling
+- **Future**: Use `SELECT FOR UPDATE` in transaction when migrating away from autocommit
 
-### 3. Service Layer
+### 3. Service Layer Organization
 
 **Decision**: Extend `SessionService` (not new `QuestionService`).
 - **Why**: Questions are session-scoped, matches existing pattern
 - **Simplicity**: No circular imports, single service
 
-### 4. Session Status Policy
+### 4. Session Status Policy & Exception Handling
 
 **Decision**: Allow questions in `draft` and `active` sessions (block `ended`).
 - **Why**: Matches join policy, enables pre-class Q&A
+- **Exception Choice**: Reuse `SessionNotJoinableError` for consistency with join flow
+- **Note**: This exception name is slightly misleading for questions but maintains consistency
 
 ## Implementation Plan
 
@@ -90,12 +117,13 @@ def submit_question(self, *, code: str, user_id: int, body: str) -> QuestionSumm
 1. Validate body: strip whitespace, check 1-280 chars, reject empty
 2. Get session by code (raise `SessionNotFoundError` if missing)
 3. Verify session status is `draft` or `active` (raise `SessionNotJoinableError` if `ended`)
-4. Verify user is participant (raise `NotParticipantError`)
-5. Get user for display_name (separate `get_user_by_id()` call)
-6. Count pending questions (race condition: add TODO comment)
-7. Validate count < 3 (raise `QuestionLimitExceededError`)
-8. Create question via repository
-9. Build and return `QuestionSummary`
+4. Verify user is participant via `get_participant()` (raise `NotParticipantError` if None)
+5. Get user for display_name via separate `get_user_by_id()` call
+6. Count pending questions with `count_user_pending_questions()`
+7. **Race condition point**: Add TODO comment HERE before validation
+8. Validate count < 3 (raise `QuestionLimitExceededError` if >= 3)
+9. Create question via `create_question()` repository call
+10. Build and return `QuestionSummary` with author details
 
 **Export**: Update `__init__.py`
 
@@ -165,10 +193,12 @@ async def submit_question(
 1. **Repository**: Add `create_question()` + `count_user_pending_questions()` with 3 tests
 2. **Service**: Add `submit_question()` method + exceptions with 5 tests
 3. **API**: Add POST endpoint with error handling with 6 tests
-4. **Verification**: Run full test suite (84 + 14 = 98 tests pass)
+4. **Verification**: Run full test suite to ensure no regressions
 5. **Documentation**: Update `docs/api/sessions.md` with POST endpoint spec
 
 **Estimated Time**: 4-6 hours (lean implementation + critical tests only)
+
+**Note**: Frontend changes (user ID tracking) must happen in parallel or this endpoint will be non-functional.
 
 ---
 
@@ -217,15 +247,25 @@ Content-Type: application/json
 
 ## Race Condition Documentation
 
-**Location**: `backend/app/services/sessions.py` in `submit_question()`
+**Location**: `backend/app/services/sessions.py` in `submit_question()` method
 
-**Comment**:
+**Exact placement** (between count and validation):
 ```python
-# TODO: Race condition possible with autocommit connections.
-# Count + insert not atomic. Two concurrent submissions may exceed limit.
-# Fix: Wrap in transaction with SELECT FOR UPDATE when migrating away from autocommit.
-# Risk: Low (requires exact concurrent timing from same user).
-# Mitigation: Client-side button disabling reduces likelihood.
+def submit_question(self, *, code: str, user_id: int, body: str) -> QuestionSummary:
+    # ... session lookup, participant check, user lookup ...
+    
+    # Count pending questions for this user in this session
+    count = count_user_pending_questions(conn, session["id"], user_id)
+    
+    # TODO: Race condition possible with autocommit connections.
+    # Count + insert not atomic. Two concurrent submissions may exceed limit.
+    # Fix: Wrap in transaction with SELECT FOR UPDATE when migrating away from autocommit.
+    # Risk: Low (requires exact concurrent timing from same user).
+    # Mitigation: Client-side button disabling reduces likelihood.
+    if count >= 3:
+        raise QuestionLimitExceededError("User has reached question limit")
+    
+    # Create question...
 ```
 
 ---
@@ -239,21 +279,46 @@ Content-Type: application/json
 - ✅ Blocks non-participants
 - ✅ Validates body length (1-280 chars)
 - ✅ 14 critical tests pass
-- ✅ 84 existing tests remain passing
-- ✅ Race condition documented with TODO
+- ✅ All existing tests remain passing
+- ✅ Race condition documented with TODO at exact location
+- ⚠️ **Caveat**: Endpoint unusable until frontend sends X-User-Id header
+
+---
+
+## Known Limitations
+
+1. **Frontend Dependency**: This endpoint requires frontend to send X-User-Id header. Frontend changes must happen in parallel:
+   - Add X-Created-User-Id to join/create API responses
+   - Store userId in sessionStorage
+   - Send X-User-Id header in question submission requests
+
+2. **Race Condition**: 3-question limit can be exceeded with exact concurrent timing (documented with TODO)
+
+3. **Exception Naming**: `SessionNotJoinableError` used for both join operations and question submissions (slightly misleading but maintains consistency)
 
 ---
 
 ## Out of Scope (Future Work)
 
-- Frontend implementation (UI form, character counter, error display)
-- User ID tracking headers (`X-Created-User-Id` in join/create responses)
-- sessionStorage augmentation
-- CSS styling
+- **Frontend user ID tracking** (required for endpoint to function—separate ticket needed)
+- Frontend UI form, character counter, error display
+- sessionStorage augmentation with userId
+- CSS styling for question form
 - Manual frontend testing
 - Integration tests for full submit → GET flow
 - WebSocket notifications for real-time updates
 - Question editing/deletion
-- Host moderation (mark as answered)
+- Host moderation (mark as answered, delete questions)
 
-**Next**: Frontend ticket to consume this API (separate dev journal entry).
+**Critical Next Step**: Frontend must implement user ID tracking before this endpoint is usable in production.
+
+---
+
+## API Endpoints Summary
+
+| Method | Path | Status |
+|--------|------|--------|
+| GET | `/sessions/{code}/questions` | ✅ **ALREADY IMPLEMENTED** (question viewing) |
+| POST | `/sessions/{code}/questions` | ❌ **TO BE IMPLEMENTED** (question submission) |
+
+Both endpoints work together to provide complete question functionality.
