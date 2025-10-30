@@ -9,6 +9,8 @@ from app.repositories import (
     create_user,
     insert_session,
     list_session_questions,
+    create_question,
+    count_user_pending_questions,
 )
 
 
@@ -225,3 +227,131 @@ def test_list_session_questions_includes_author_details(db_connection) -> None:
     assert result[0]["author_user_id"] == author["id"]
     assert result[0]["author_display_name"] == "Alice Wonder"
     assert result[0]["likes"] == 10
+
+
+def test_create_question_with_author(db_connection) -> None:
+    """Test creating a question with an author user_id."""
+    
+    host = create_user(db_connection, "Prof. Smith")
+    author = create_user(db_connection, "Student Alice")
+    
+    session = insert_session(
+        db_connection,
+        host_user_id=host["id"],
+        title="Test Session",
+        code="TEST01",
+    )
+    
+    # Create question with author
+    result = create_question(
+        db_connection,
+        session_id=session["id"],
+        author_user_id=author["id"],
+        body="What is the meaning of life?",
+    )
+    
+    # Verify all fields are returned
+    assert result["id"] is not None
+    assert result["session_id"] == session["id"]
+    assert result["author_user_id"] == author["id"]
+    assert result["body"] == "What is the meaning of life?"
+    assert result["status"] == "pending"
+    assert result["likes"] == 0
+    assert result["created_at"] is not None
+    assert result["answered_at"] is None
+
+
+def test_create_question_anonymous(db_connection) -> None:
+    """Test creating a question with NULL author_user_id (anonymous)."""
+    
+    host = create_user(db_connection, "Prof. Smith")
+    
+    session = insert_session(
+        db_connection,
+        host_user_id=host["id"],
+        title="Anonymous Session",
+        code="ANON01",
+    )
+    
+    # Create anonymous question
+    result = create_question(
+        db_connection,
+        session_id=session["id"],
+        author_user_id=None,
+        body="Anonymous question here",
+    )
+    
+    # Verify anonymous question created successfully
+    assert result["id"] is not None
+    assert result["session_id"] == session["id"]
+    assert result["author_user_id"] is None
+    assert result["body"] == "Anonymous question here"
+    assert result["status"] == "pending"
+    assert result["likes"] == 0
+
+
+def test_count_user_pending_questions(db_connection) -> None:
+    """Test counting pending questions for a user in a session."""
+    
+    host = create_user(db_connection, "Prof. Host")
+    author = create_user(db_connection, "Student Bob")
+    
+    session = insert_session(
+        db_connection,
+        host_user_id=host["id"],
+        title="Count Test Session",
+        code="COUNT1",
+    )
+    
+    # Initially zero questions
+    count = count_user_pending_questions(db_connection, session["id"], author["id"])
+    assert count == 0
+    
+    # Create first pending question
+    create_question(
+        db_connection,
+        session_id=session["id"],
+        author_user_id=author["id"],
+        body="First question",
+    )
+    
+    count = count_user_pending_questions(db_connection, session["id"], author["id"])
+    assert count == 1
+    
+    # Create second pending question
+    create_question(
+        db_connection,
+        session_id=session["id"],
+        author_user_id=author["id"],
+        body="Second question",
+    )
+    
+    count = count_user_pending_questions(db_connection, session["id"], author["id"])
+    assert count == 2
+    
+    # Create an answered question (should not be counted)
+    with db_connection.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO questions (session_id, author_user_id, body, status)
+            VALUES (%s, %s, %s, 'answered')
+            """,
+            (session["id"], author["id"], "Answered question"),
+        )
+    
+    # Count should still be 2 (only pending)
+    count = count_user_pending_questions(db_connection, session["id"], author["id"])
+    assert count == 2
+    
+    # Create question from different user (should not be counted)
+    other_user = create_user(db_connection, "Other Student")
+    create_question(
+        db_connection,
+        session_id=session["id"],
+        author_user_id=other_user["id"],
+        body="Other user's question",
+    )
+    
+    # Count should still be 2 (only author's pending questions)
+    count = count_user_pending_questions(db_connection, session["id"], author["id"])
+    assert count == 2
