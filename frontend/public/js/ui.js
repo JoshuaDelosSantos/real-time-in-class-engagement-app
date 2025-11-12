@@ -11,10 +11,10 @@
  */
 function initializeApp() {
   renderDynamicForms();
-  setupHealthCheck();
-  setupSessionsFetch();
   setupCreateSession();
   setupJoinSession();
+  setupHealthCheck();
+  setupSessionsFetch();
   checkActiveSession();
 }
 
