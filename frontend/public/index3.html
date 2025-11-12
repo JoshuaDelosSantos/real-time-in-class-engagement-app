@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClassEngage</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+  </head>
+  <body>
+    <section>
+      <h1>ClassEngage Health Check</h1>
+      <h2>API Status</h2>
+      <button id="ping">Check Health</button>
+      <pre id="output">Click the button to fetch /health</pre>
+    </section>
+
+    <section>
+      <h2>Available Sessions</h2>
+      <button id="fetch-sessions">Fetch Sessions</button>
+      <div id="sessions-output">Click the button to load sessions</div>
+    </section>
+
+    <!-- Dynamic forms injected here by JavaScript -->
+    <div id="dynamic-forms"></div>
+
+    <!-- Active Session Section -->
+    <section id="active-session-section" style="display: none;">
+      <h2>Active Session</h2>
+      <div id="active-session-info"></div>
+    </section>
+
+    <!-- Load scripts in dependency order: utils → components → api → ui -->
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/components.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/ui.js"></script>
+  </body>
+</html>

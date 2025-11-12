@@ -86,9 +86,27 @@ function renderDynamicForms() {
     outputInitialText: 'Enter a session code and your name to join'
   });
   
-  // Inject both forms
-  container.innerHTML = createSessionHTML + joinSessionHTML;
+
+
+  // Only show the correct form depending on page
+  const path = window.location.pathname;
+  let htmlToRender = '';
+
+  if (path.includes('start.html')) {
+    htmlToRender = createSessionHTML;
+  } else if (path.includes('join.html')) {
+    htmlToRender = joinSessionHTML;
+  } else {
+    htmlToRender = createSessionHTML + joinSessionHTML;
+  }
+
+  container.innerHTML = htmlToRender;
 }
+
+
+  // Inject both forms
+  // container.innerHTML = createSessionHTML + joinSessionHTML;
+// }
 
 /**
  * Set up the health check button and handler.
@@ -535,3 +553,38 @@ if (document.readyState === 'loading') {
 } else {
   initializeApp();
 }
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Check which page we're on
+  const path = window.location.pathname;
+
+  //  Join Page
+  if (path.includes('join.html')) {
+    console.log('Join page detected');
+    const container = document.getElementById('dynamic-forms');
+    if (container) {
+      renderDynamicForms(container); // reuse your existing function
+      // hide create form, keep only join
+      const createForm = container.querySelector('.create-session');
+      if (createForm) createForm.style.display = 'none';
+    }
+  }
+
+  //  Start Page
+  else if (path.includes('start.html')) {
+    console.log('Start page detected');
+    const container = document.getElementById('dynamic-forms');
+    if (container) {
+      renderDynamicForms(container);
+      // hide join form, keep only create
+      const joinForm = container.querySelector('.join-session');
+      if (joinForm) joinForm.style.display = 'none';
+    }
+  }
+
+  //  Index (home) page
+  else if (path.endsWith('index.html') || path === '/') {
+    console.log('Home page — no dynamic forms needed');
+  }
+});
