@@ -552,38 +552,3 @@ if (document.readyState === 'loading') {
 } else {
   initializeApp();
 }
-
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Check which page we're on
-  const path = window.location.pathname;
-
-  //  Join Page
-  if (path.includes('join.html')) {
-    console.log('Join page detected');
-    const container = document.getElementById('dynamic-forms');
-    if (container) {
-      renderDynamicForms(container); // reuse your existing function
-      // hide create form, keep only join
-      const createForm = container.querySelector('.create-session');
-      if (createForm) createForm.style.display = 'none';
-    }
-  }
-
-  //  Start Page
-  else if (path.includes('start.html')) {
-    console.log('Start page detected');
-    const container = document.getElementById('dynamic-forms');
-    if (container) {
-      renderDynamicForms(container);
-      // hide join form, keep only create
-      const joinForm = container.querySelector('.join-session');
-      if (joinForm) joinForm.style.display = 'none';
-    }
-  }
-
-  //  Index (home) page
-  else if (path.endsWith('index.html') || path === '/') {
-    console.log('Home page — no dynamic forms needed');
-  }
-});
