@@ -87,7 +87,6 @@ function renderDynamicForms() {
   });
   
 
-
   // Only show the correct form depending on page
   const path = window.location.pathname;
   let htmlToRender = '';
