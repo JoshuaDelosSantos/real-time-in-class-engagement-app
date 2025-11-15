@@ -11,10 +11,10 @@
  */
 function initializeApp() {
   renderDynamicForms();
-  setupHealthCheck();
-  setupSessionsFetch();
   setupCreateSession();
   setupJoinSession();
+  setupHealthCheck();
+  setupSessionsFetch();
   checkActiveSession();
 }
 
@@ -86,9 +86,26 @@ function renderDynamicForms() {
     outputInitialText: 'Enter a session code and your name to join'
   });
   
-  // Inject both forms
-  container.innerHTML = createSessionHTML + joinSessionHTML;
+
+  // Only show the correct form depending on page
+  const path = window.location.pathname;
+  let htmlToRender = '';
+
+  if (path.includes('start.html')) {
+    htmlToRender = createSessionHTML;
+  } else if (path.includes('join.html')) {
+    htmlToRender = joinSessionHTML;
+  } else {
+    htmlToRender = createSessionHTML + joinSessionHTML;
+  }
+
+  container.innerHTML = htmlToRender;
 }
+
+
+  // Inject both forms
+  // container.innerHTML = createSessionHTML + joinSessionHTML;
+// }
 
 /**
  * Set up the health check button and handler.
