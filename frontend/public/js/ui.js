@@ -11,10 +11,10 @@
  */
 function initializeApp() {
   renderDynamicForms();
-  setupHealthCheck();
-  setupSessionsFetch();
   setupCreateSession();
   setupJoinSession();
+  setupHealthCheck();
+  setupSessionsFetch();
   checkActiveSession();
 }
 
@@ -28,7 +28,7 @@ function renderDynamicForms() {
     console.warn('Dynamic forms container not found');
     return;
   }
-
+  
   // Create Session Form
   const createSessionHTML = createFormSection({
     id: 'create-form',
@@ -54,7 +54,7 @@ function renderDynamicForms() {
     outputId: 'create-output',
     outputInitialText: 'Fill out the form above to create a new session'
   });
-
+  
   // Join Session Form (refactored from hardcoded HTML)
   const joinSessionHTML = createFormSection({
     id: 'join-form',
@@ -85,10 +85,27 @@ function renderDynamicForms() {
     outputId: 'join-output',
     outputInitialText: 'Enter a session code and your name to join'
   });
+  
+
+  // Only show the correct form depending on page
+  const path = window.location.pathname;
+  let htmlToRender = '';
+
+  if (path.includes('start.html')) {
+    htmlToRender = createSessionHTML;
+  } else if (path.includes('join.html')) {
+    htmlToRender = joinSessionHTML;
+  } else {
+    htmlToRender = createSessionHTML + joinSessionHTML;
+  }
+
+  container.innerHTML = htmlToRender;
+}
+
 
   // Inject both forms
-  container.innerHTML = createSessionHTML + joinSessionHTML;
-}
+  // container.innerHTML = createSessionHTML + joinSessionHTML;
+// }
 
 /**
  * Set up the health check button and handler.
@@ -96,12 +113,12 @@ function renderDynamicForms() {
 function setupHealthCheck() {
   const button = document.getElementById('ping');
   const output = document.getElementById('output');
-
+  
   button.addEventListener('click', async () => {
     // Show loading state
     output.textContent = 'Checking…';
     button.disabled = true;
-
+    
     try {
       const data = await checkHealth();
       renderHealthStatus(output, data);
@@ -119,12 +136,12 @@ function setupHealthCheck() {
 function setupSessionsFetch() {
   const button = document.getElementById('fetch-sessions');
   const output = document.getElementById('sessions-output');
-
+  
   button.addEventListener('click', async () => {
     // Show loading state
     showLoading(output);
     button.disabled = true;
-
+    
     try {
       const sessions = await fetchSessions();
       renderSessions(output, sessions);
@@ -145,52 +162,52 @@ function setupCreateSession() {
   const hostNameInput = document.getElementById('host-name');
   const submitButton = document.getElementById('create-button');
   const output = document.getElementById('create-output');
-
+  
   // DOM guards
   if (!form || !titleInput || !hostNameInput || !submitButton || !output) {
     console.warn('Create session form elements not found, skipping setup');
     return;
   }
-
+  
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-
+    
     const title = titleInput.value.trim();
     const hostName = hostNameInput.value.trim();
-
+    
     // Validation
     if (!title || title.length < 1) {
       renderError(output, 'Please enter a session title');
       return;
     }
-
+    
     if (title.length > 200) {
       renderError(output, 'Session title must be 200 characters or less');
       return;
     }
-
+    
     if (!hostName || hostName.length < 1) {
       renderError(output, 'Please enter your name as host');
       return;
     }
-
+    
     if (hostName.length > 100) {
       renderError(output, 'Host name must be 100 characters or less');
       return;
     }
-
+    
     // Disable during request
     submitButton.disabled = true;
     titleInput.disabled = true;
     hostNameInput.disabled = true;
     showLoading(output, 'Creating session…');
-
+    
     try {
       const session = await createSession({
         title: title,
         host_display_name: hostName
       });
-
+      
       // Store created session info
       sessionStorage.setItem('createdSession', JSON.stringify({
         code: session.code,
@@ -198,10 +215,10 @@ function setupCreateSession() {
         hostName: hostName,
         createdAt: new Date().toISOString()
       }));
-
+      
       renderCreateSuccess(output, session);
       form.reset();
-
+      
     } catch (error) {
       renderCreateError(output, error.message);
     } finally {
@@ -221,54 +238,54 @@ function setupJoinSession() {
   const nameInput = document.getElementById('display-name');
   const submitButton = document.getElementById('join-button');
   const output = document.getElementById('join-output');
-
+  
   // DOM guards
   if (!form || !codeInput || !nameInput || !submitButton || !output) {
     console.warn('Join session form elements not found, skipping setup');
     return;
   }
-
+  
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-
+    
     const code = codeInput.value.trim().toUpperCase();
     const displayName = nameInput.value.trim();
-
+    
     // Validation
     if (!code || code.length !== 6) {
       renderError(output, 'Please enter a valid 6-character session code');
       return;
     }
-
+    
     if (!displayName || displayName.length < 1) {
       renderError(output, 'Please enter your display name');
       return;
     }
-
+    
     if (displayName.length > 100) {
       renderError(output, 'Display name must be 100 characters or less');
       return;
     }
-
+    
     // Disable during request
     submitButton.disabled = true;
     codeInput.disabled = true;
     nameInput.disabled = true;
     showLoading(output, 'Joining session…');
-
+    
     try {
       const session = await joinSession(code, displayName);
-
+      
       // Store session info
       sessionStorage.setItem('currentSession', JSON.stringify({
         code: session.code,
         displayName: displayName,
         joinedAt: new Date().toISOString()
       }));
-
+      
       renderJoinSuccess(output, session, displayName);
       form.reset();
-
+      
     } catch (error) {
       renderJoinError(output, error.message);
     } finally {
@@ -300,7 +317,7 @@ function renderSessions(element, sessions) {
     element.innerHTML = '<div class="empty-message">No sessions available</div>';
     return;
   }
-
+  
   const sessionCards = sessions.map(session => `
     <div class="session-card">
       <div class="session-title">${escapeHtml(session.title)}</div>
@@ -311,7 +328,7 @@ function renderSessions(element, sessions) {
       </div>
     </div>
   `).join('');
-
+  
   element.innerHTML = `<div class="session-list">${sessionCards}</div>`;
 }
 
@@ -343,7 +360,7 @@ function renderError(element, message) {
  */
 function renderCreateSuccess(element, session) {
   const sessionUrl = `/static/session.html?code=${escapeHtml(session.code)}`;
-
+  
   element.innerHTML = `
     <div class="success-message">
       <h3>✓ Session Created!</h3>
@@ -363,21 +380,21 @@ function renderCreateSuccess(element, session) {
       </div>
     </div>
   `;
-
+  
   // Store session in sessionStorage
   sessionStorage.setItem('currentSession', JSON.stringify(session));
-
+  
   // Auto-redirect with countdown (use setTimeout to ensure DOM is updated)
   setTimeout(() => {
     let countdown = 2;
     const countdownElement = element.querySelector('#redirect-countdown');
-
+    
     if (!countdownElement) {
       console.warn('Countdown element not found, redirecting immediately');
       window.location.href = sessionUrl;
       return;
     }
-
+    
     const countdownInterval = setInterval(() => {
       countdown--;
       if (countdownElement) {
@@ -388,7 +405,7 @@ function renderCreateSuccess(element, session) {
         }
       }
     }, 1000);
-
+    
     setTimeout(() => {
       clearInterval(countdownInterval);
       console.log('Redirecting to session page (create):', sessionUrl);
@@ -407,9 +424,9 @@ function renderCreateError(element, errorMessage) {
   const friendlyMessages = {
     'Host has reached maximum active sessions limit (3)': 'You\'ve reached the maximum of 3 active sessions. Please end an existing session before creating a new one.',
   };
-
+  
   const displayMessage = friendlyMessages[errorMessage] || errorMessage;
-
+  
   element.innerHTML = `
     <div class="error-message">
       <p><strong>Unable to create session</strong></p>
@@ -426,8 +443,8 @@ function renderCreateError(element, errorMessage) {
  * @param {string} displayName - User's display name
  */
 function renderJoinSuccess(element, session, displayName) {
-  const sessionUrl = `/static/session.html?code=${escapeHtml(session.code)}`;
-
+  const sessionUrl = `/static/class-discussion-student.html?code=${escapeHtml(session.code)}`;
+  
   element.innerHTML = `
     <div class="success-message">
       <h3>✓ Successfully joined!</h3>
@@ -444,21 +461,21 @@ function renderJoinSuccess(element, session, displayName) {
       </p>
     </div>
   `;
-
+  
   // Store session in sessionStorage
   sessionStorage.setItem('currentSession', JSON.stringify(session));
-
+  
   // Auto-redirect with countdown (use setTimeout to ensure DOM is updated)
   setTimeout(() => {
     let countdown = 2;
     const countdownElement = element.querySelector('#redirect-countdown');
-
+    
     if (!countdownElement) {
       console.warn('Countdown element not found, redirecting immediately');
       window.location.href = sessionUrl;
       return;
     }
-
+    
     const countdownInterval = setInterval(() => {
       countdown--;
       if (countdownElement) {
@@ -469,7 +486,7 @@ function renderJoinSuccess(element, session, displayName) {
         }
       }
     }, 1000);
-
+    
     setTimeout(() => {
       clearInterval(countdownInterval);
       console.log('Redirecting to session page (join):', sessionUrl);
@@ -490,9 +507,9 @@ function renderJoinError(element, errorMessage) {
     'Session has ended and is no longer joinable': 'This session has ended and is no longer accepting participants.',
     'Display name is required': 'Please enter a display name (cannot be only spaces).',
   };
-
+  
   const displayMessage = friendlyMessages[errorMessage] || errorMessage;
-
+  
   element.innerHTML = `
     <div class="error-message">
       <p><strong>Unable to join session</strong></p>
@@ -507,12 +524,12 @@ function renderJoinError(element, errorMessage) {
 function checkActiveSession() {
   const sessionSection = document.getElementById('active-session-section');
   const sessionInfo = document.getElementById('active-session-info');
-
+  
   if (!sessionSection || !sessionInfo) return;
-
+  
   const sessionData = sessionStorage.getItem('currentSession');
   if (!sessionData) return;
-
+  
   try {
     const session = JSON.parse(sessionData);
     sessionSection.style.display = 'block';
@@ -520,7 +537,7 @@ function checkActiveSession() {
       <div class="session-card">
         <div class="session-title">${escapeHtml(session.title)}</div>
         <div class="session-meta">Code: ${escapeHtml(session.code)}</div>
-        <a href="/static/session.html?code=${escapeHtml(session.code)}" class="button">Continue Session</a>
+        <a href="/static/class-discussion-student.html?code=${escapeHtml(session.code)}" class="button">Continue Session</a>
       </div>
     `;
   } catch (error) {
@@ -535,8 +552,6 @@ if (document.readyState === 'loading') {
 } else {
   initializeApp();
 }
-
-
 
 // New
 document.addEventListener('DOMContentLoaded', () => {

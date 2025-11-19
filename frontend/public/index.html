@@ -4,7 +4,7 @@
 <head>
   <title>LearnJCU Interactive</title>
   <meta charset="utf-8">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="/static/css/styles.css">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,16 +16,18 @@
   <div class="container">
 
     <div class="index-logo">
-      <img src="images/white_logo_icon.png" alt="JCU Icon" class="jcu-main-logo">
+      <img src="/static/images/white_logo_icon.png" alt="JCU Icon" class="jcu-main-logo">
       <h1 class="learnjcu-heading">LearnJCU<br>Interactive</h1>
     </div>
 
     <div class="session-selection">
-      <button class="session-button start-session">Start Session</button>
-      <button class="session-button join-session">Join Session</button>
+      <!-- <button class="session-button start-session">Start Session</button> -->
+      <button onclick="window.location.href='/static/start.html'">Start Session</button>
+      <button onclick="window.location.href='/static/join.html'">Join Session</button>
+
     </div>
     <footer>
-      <img src="images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
+      <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
     </footer>
 
   </div>
