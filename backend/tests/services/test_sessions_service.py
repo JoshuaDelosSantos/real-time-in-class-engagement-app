@@ -3,7 +3,7 @@ from __future__ import annotations
 import psycopg # type: ignore
 import pytest # type: ignore
 
-from app.repositories import create_user, get_participant, insert_session
+from app.repositories import create_user, get_participant, insert_session, add_participant
 from app.schemas.sessions import SessionSummary
 from app.schemas.session_participants import SessionParticipantSummary
 from app.schemas.questions import QuestionSummary
@@ -13,6 +13,8 @@ from app.services.sessions import (
     InvalidHostDisplayNameError,
     SessionNotFoundError,
     SessionNotJoinableError,
+    NotParticipantError,
+    QuestionLimitExceededError,
     SessionService,
 )
 from app.settings import get_psycopg_dsn
@@ -613,4 +615,139 @@ def test_get_session_questions_raises_error_for_invalid_code() -> None:
         service.get_session_questions(code="INVALID")
     
     assert "Session not found" in str(exc_info.value)
+
+
+def test_submit_question_success() -> None:
+    """Test successful question submission with author attribution."""
+    service = SessionService(connection_provider=_connection_provider())
+    
+    with psycopg.connect(get_psycopg_dsn(), autocommit=True) as conn:
+        # Create host and session
+        host = create_user(conn, "Prof. Smith")
+        session = insert_session(
+            conn,
+            host_user_id=host["id"],
+            title="Test Session",
+            code="TEST01",
+        )
+        
+        # Create participant
+        participant = create_user(conn, "Student Alice")
+        add_participant(conn, session_id=session["id"], user_id=participant["id"], role="participant")
+    
+    # Submit question
+    result = service.submit_question(
+        code="TEST01",
+        user_id=participant["id"],
+        body="What is the meaning of life?"
+    )
+    
+    # Verify returned QuestionSummary
+    assert isinstance(result, QuestionSummary)
+    assert result.body == "What is the meaning of life?"
+    assert result.status == "pending"
+    assert result.likes == 0
+    assert result.author is not None
+    assert result.author.id == participant["id"]
+    assert result.author.display_name == "Student Alice"
+    assert result.session_id == session["id"]
+
+
+def test_submit_question_session_not_found() -> None:
+    """Test question submission to non-existent session raises error."""
+    service = SessionService(connection_provider=_connection_provider())
+    
+    with pytest.raises(SessionNotFoundError) as exc_info:
+        service.submit_question(code="INVALID", user_id=999, body="Question?")
+    
+    assert "Session not found" in str(exc_info.value)
+
+
+def test_submit_question_not_participant() -> None:
+    """Test question submission by non-participant raises error."""
+    service = SessionService(connection_provider=_connection_provider())
+    
+    with psycopg.connect(get_psycopg_dsn(), autocommit=True) as conn:
+        # Create session
+        host = create_user(conn, "Prof. Smith")
+        session = insert_session(
+            conn,
+            host_user_id=host["id"],
+            title="Test Session",
+            code="TEST02",
+        )
+        
+        # Create user who is NOT a participant
+        non_participant = create_user(conn, "Outsider Bob")
+    
+    # Attempt to submit question as non-participant
+    with pytest.raises(NotParticipantError) as exc_info:
+        service.submit_question(
+            code="TEST02",
+            user_id=non_participant["id"],
+            body="Can I ask?"
+        )
+    
+    assert "participant" in str(exc_info.value).lower()
+
+
+def test_submit_question_limit_exceeded() -> None:
+    """Test question submission when user has 3 pending questions raises error."""
+    service = SessionService(connection_provider=_connection_provider())
+    
+    with psycopg.connect(get_psycopg_dsn(), autocommit=True) as conn:
+        # Create session and participant
+        host = create_user(conn, "Prof. Smith")
+        session = insert_session(
+            conn,
+            host_user_id=host["id"],
+            title="Test Session",
+            code="TEST03",
+        )
+        participant = create_user(conn, "Student Charlie")
+        add_participant(conn, session_id=session["id"], user_id=participant["id"], role="participant")
+    
+    # Submit 3 questions successfully
+    service.submit_question(code="TEST03", user_id=participant["id"], body="Question 1")
+    service.submit_question(code="TEST03", user_id=participant["id"], body="Question 2")
+    service.submit_question(code="TEST03", user_id=participant["id"], body="Question 3")
+    
+    # Attempt to submit 4th question should fail
+    with pytest.raises(QuestionLimitExceededError) as exc_info:
+        service.submit_question(code="TEST03", user_id=participant["id"], body="Question 4")
+    
+    assert "3" in str(exc_info.value) or "limit" in str(exc_info.value).lower()
+
+
+def test_submit_question_body_validation() -> None:
+    """Test question submission with invalid body raises validation errors."""
+    service = SessionService(connection_provider=_connection_provider())
+    
+    with psycopg.connect(get_psycopg_dsn(), autocommit=True) as conn:
+        # Create session and participant
+        host = create_user(conn, "Prof. Smith")
+        session = insert_session(
+            conn,
+            host_user_id=host["id"],
+            title="Test Session",
+            code="TEST04",
+        )
+        participant = create_user(conn, "Student Dave")
+        add_participant(conn, session_id=session["id"], user_id=participant["id"], role="participant")
+    
+    # Test empty body
+    with pytest.raises(ValueError) as exc_info:
+        service.submit_question(code="TEST04", user_id=participant["id"], body="")
+    assert "empty" in str(exc_info.value).lower()
+    
+    # Test whitespace-only body
+    with pytest.raises(ValueError) as exc_info:
+        service.submit_question(code="TEST04", user_id=participant["id"], body="   ")
+    assert "empty" in str(exc_info.value).lower()
+    
+    # Test body too long (> 280 chars)
+    long_body = "x" * 281
+    with pytest.raises(ValueError) as exc_info:
+        service.submit_question(code="TEST04", user_id=participant["id"], body=long_body)
+    assert "280" in str(exc_info.value)
 

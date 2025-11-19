@@ -13,7 +13,10 @@ from app.db import db_connection
 from app.repositories import (
     add_participant,
     count_active_sessions_for_host,
+    count_user_pending_questions,
+    create_question,
     create_user,
+    get_participant,
     get_session_by_code,
     get_user_by_display_name,
     get_user_by_id,
@@ -55,6 +58,14 @@ class SessionNotFoundError(RuntimeError):
 
 class SessionNotJoinableError(RuntimeError):
     """Raised when attempting to join a session that has ended."""
+
+
+class NotParticipantError(RuntimeError):
+    """Raised when a user attempts to perform an action but is not a participant in the session."""
+
+
+class QuestionLimitExceededError(RuntimeError):
+    """Raised when a user has reached the maximum number of pending questions allowed."""
 
 
 class ConnectionProvider(Protocol):
@@ -338,6 +349,82 @@ class SessionService:
             status=session["status"],
             host=UserSummary(id=host["id"], display_name=host["display_name"]),
             created_at=session["created_at"],
+        )
+
+    def submit_question(self, *, code: str, user_id: int, body: str) -> QuestionSummary:
+        """Submit a new question to a session.
+        
+        Args:
+            code: The session join code
+            user_id: ID of the user submitting the question
+            body: Question text content
+            
+        Returns:
+            QuestionSummary with the created question and author details
+            
+        Raises:
+            SessionNotFoundError: Session code doesn't exist
+            SessionNotJoinableError: Session status is 'ended'
+            NotParticipantError: User is not a participant in the session
+            QuestionLimitExceededError: User has reached the 3-question limit
+        """
+        # Validate and clean body
+        if not body or not body.strip():
+            raise ValueError("Question body cannot be empty")
+        
+        clean_body = body.strip()
+        
+        if len(clean_body) > 280:
+            raise ValueError("Question exceeds 280 characters")
+        
+        with self.connection_provider() as conn:
+            # Look up session by code
+            session = get_session_by_code(conn, code)
+            if not session:
+                raise SessionNotFoundError("Session not found")
+            
+            # Verify session is active or draft (not ended)
+            if session["status"] == "ended":
+                raise SessionNotJoinableError("Session has ended and is no longer accepting questions")
+            
+            # Verify user is a participant
+            participant = get_participant(conn, session["id"], user_id)
+            if not participant:
+                raise NotParticipantError("User must be a participant to submit questions")
+            
+            # Get user details for author attribution
+            user = get_user_by_id(conn, user_id)
+            if not user:
+                raise NotParticipantError("User not found")
+            
+            # Count user's pending questions
+            pending_count = count_user_pending_questions(conn, session["id"], user_id)
+            
+            # TODO: Race condition possible with autocommit connections.
+            # Count + insert not atomic. Two concurrent submissions may exceed limit.
+            # Fix: Wrap in transaction with SELECT FOR UPDATE when migrating away from autocommit.
+            # Risk: Low (requires exact concurrent timing from same user).
+            # Mitigation: Client-side button disabling reduces likelihood.
+            if pending_count >= 3:
+                raise QuestionLimitExceededError("User has reached the maximum of 3 pending questions")
+            
+            # Create the question
+            question = create_question(
+                conn,
+                session_id=session["id"],
+                author_user_id=user_id,
+                body=clean_body,
+            )
+        
+        # Build and return QuestionSummary
+        return QuestionSummary(
+            id=question["id"],
+            session_id=question["session_id"],
+            body=question["body"],
+            status=question["status"],
+            likes=question["likes"],
+            author=UserSummary(id=user["id"], display_name=user["display_name"]),
+            created_at=question["created_at"],
         )
 
 

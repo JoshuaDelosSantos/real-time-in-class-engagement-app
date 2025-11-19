@@ -4,14 +4,16 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status # type: ignore
+from fastapi import APIRouter, Header, HTTPException, Query, status # type: ignore
 
 from app.schemas.sessions import SessionCreate, SessionJoinRequest, SessionSummary
 from app.schemas.session_participants import SessionParticipantSummary
-from app.schemas.questions import QuestionSummary
+from app.schemas.questions import QuestionCreate, QuestionSummary
 from app.services import (
     HostSessionLimitError,
     InvalidHostDisplayNameError,
+    NotParticipantError,
+    QuestionLimitExceededError,
     SessionCodeCollisionError,
     SessionNotFoundError,
     SessionNotJoinableError,
@@ -97,6 +99,34 @@ async def get_questions(
         return service.get_session_questions(code=code, status=question_status)
     except SessionNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post("/{code}/questions", response_model=QuestionSummary, status_code=status.HTTP_201_CREATED)
+async def submit_question(
+    code: str,
+    payload: QuestionCreate,
+    x_user_id: Annotated[int, Header(description="User ID of the question author")],
+) -> QuestionSummary:
+    """Submit a question to a session.
+    
+    Requires X-User-Id header to identify the author.
+    Users can submit up to 3 pending questions per session.
+    Only participants can submit questions.
+    """
+
+    service = get_session_service()
+    try:
+        return service.submit_question(code=code, user_id=x_user_id, body=payload.body)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except SessionNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except NotParticipantError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except SessionNotJoinableError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except QuestionLimitExceededError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
 
 @router.post("/{code}/join", response_model=SessionSummary, status_code=status.HTTP_200_OK)

@@ -9,7 +9,7 @@ from .sessions import (
 	list_sessions,
 )
 from .session_participants import add_participant, get_participant, list_session_participants
-from .questions import list_session_questions
+from .questions import list_session_questions, create_question, count_user_pending_questions
 
 __all__ = [
 	"create_user",
@@ -24,4 +24,6 @@ __all__ = [
 	"get_participant",
 	"list_session_participants",
 	"list_session_questions",
+	"create_question",
+	"count_user_pending_questions",
 ]

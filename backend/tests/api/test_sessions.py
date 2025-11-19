@@ -634,3 +634,221 @@ def test_get_questions_response_schema() -> None:
     assert isinstance(question["author"]["id"], int)
     assert isinstance(question["author"]["display_name"], str)
 
+
+# Post Question Tests
+
+
+def test_post_question_success_201() -> None:
+    """Test POST /sessions/{code}/questions creates question and returns 201."""
+    # Create session
+    create_response = client.post(
+        "/sessions",
+        json={"title": "Test Session", "host_display_name": "Dr. Host"},
+    )
+    assert create_response.status_code == 201
+    code = create_response.json()["code"]
+
+    # Join as participant
+    join_response = client.post(
+        f"/sessions/{code}/join",
+        json={"display_name": "Alice"},
+    )
+    assert join_response.status_code == 200
+    
+    # Get user ID from database
+    from app.repositories import get_user_by_display_name
+    from app.settings import get_psycopg_dsn
+    import psycopg
+    
+    dsn = get_psycopg_dsn()
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        user = get_user_by_display_name(conn, "Alice")
+        assert user is not None
+        user_id = user["id"]
+
+    # Submit question
+    response = client.post(
+        f"/sessions/{code}/questions",
+        json={"body": "What is polymorphism?"},
+        headers={"X-User-Id": str(user_id)},
+    )
+    assert response.status_code == 201
+    body = response.json()
+    
+    # Validate response
+    assert body["body"] == "What is polymorphism?"
+    assert body["status"] == "pending"
+    assert body["likes"] == 0
+    assert body["author"]["display_name"] == "Alice"
+    assert "id" in body
+    assert "session_id" in body
+    assert "created_at" in body
+
+
+def test_post_question_missing_user_id_header_422() -> None:
+    """Test POST /sessions/{code}/questions returns 422 when X-User-Id header is missing."""
+    # Create session
+    create_response = client.post(
+        "/sessions",
+        json={"title": "Test Session", "host_display_name": "Dr. Host"},
+    )
+    assert create_response.status_code == 201
+    code = create_response.json()["code"]
+
+    # Attempt to submit question without X-User-Id header
+    response = client.post(
+        f"/sessions/{code}/questions",
+        json={"body": "Question without user ID?"},
+    )
+    assert response.status_code == 422
+
+
+def test_post_question_session_not_found_404() -> None:
+    """Test POST /sessions/{code}/questions returns 404 for non-existent session."""
+    response = client.post(
+        "/sessions/INVALID/questions",
+        json={"body": "Question for non-existent session"},
+        headers={"X-User-Id": "999"},
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert "detail" in body
+    assert "not found" in body["detail"].lower()
+
+
+def test_post_question_not_participant_403() -> None:
+    """Test POST /sessions/{code}/questions returns 403 when user is not a participant."""
+    # Create session
+    create_response = client.post(
+        "/sessions",
+        json={"title": "Exclusive Session", "host_display_name": "Dr. Host"},
+    )
+    assert create_response.status_code == 201
+    code = create_response.json()["code"]
+
+    # Create a user who doesn't join
+    from app.repositories import create_user
+    from app.settings import get_psycopg_dsn
+    import psycopg
+    
+    dsn = get_psycopg_dsn()
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        outsider = create_user(conn, "Outsider")
+
+    # Attempt to submit question as non-participant
+    response = client.post(
+        f"/sessions/{code}/questions",
+        json={"body": "Can I ask without joining?"},
+        headers={"X-User-Id": str(outsider["id"])},
+    )
+    assert response.status_code == 403
+    body = response.json()
+    assert "detail" in body
+    assert "participant" in body["detail"].lower()
+
+
+def test_post_question_limit_exceeded_409() -> None:
+    """Test POST /sessions/{code}/questions returns 409 when user exceeds 3 pending question limit."""
+    # Create session
+    create_response = client.post(
+        "/sessions",
+        json={"title": "Busy Session", "host_display_name": "Dr. Host"},
+    )
+    assert create_response.status_code == 201
+    code = create_response.json()["code"]
+
+    # Join as participant
+    join_response = client.post(
+        f"/sessions/{code}/join",
+        json={"display_name": "Curious Student"},
+    )
+    assert join_response.status_code == 200
+
+    # Get user ID
+    from app.repositories import get_user_by_display_name
+    from app.settings import get_psycopg_dsn
+    import psycopg
+    
+    dsn = get_psycopg_dsn()
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        user = get_user_by_display_name(conn, "Curious Student")
+        assert user is not None
+        user_id = user["id"]
+
+    # Submit 3 questions (should all succeed)
+    for i in range(3):
+        response = client.post(
+            f"/sessions/{code}/questions",
+            json={"body": f"Question {i + 1}?"},
+            headers={"X-User-Id": str(user_id)},
+        )
+        assert response.status_code == 201
+
+    # Attempt 4th question (should fail)
+    response = client.post(
+        f"/sessions/{code}/questions",
+        json={"body": "Question 4 exceeds limit?"},
+        headers={"X-User-Id": str(user_id)},
+    )
+    assert response.status_code == 409
+    body = response.json()
+    assert "detail" in body
+    assert "3 pending questions" in body["detail"].lower()
+
+
+def test_post_question_body_validation_422() -> None:
+    """Test POST /sessions/{code}/questions returns 422 for invalid body content."""
+    # Create session
+    create_response = client.post(
+        "/sessions",
+        json={"title": "Validation Session", "host_display_name": "Dr. Host"},
+    )
+    assert create_response.status_code == 201
+    code = create_response.json()["code"]
+
+    # Join as participant
+    join_response = client.post(
+        f"/sessions/{code}/join",
+        json={"display_name": "Validator"},
+    )
+    assert join_response.status_code == 200
+
+    # Get user ID
+    from app.repositories import get_user_by_display_name
+    from app.settings import get_psycopg_dsn
+    import psycopg
+    
+    dsn = get_psycopg_dsn()
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        user = get_user_by_display_name(conn, "Validator")
+        assert user is not None
+        user_id = user["id"]
+
+    # Test empty body (Pydantic validation should catch this at 422 level before service)
+    response = client.post(
+        f"/sessions/{code}/questions",
+        json={"body": ""},
+        headers={"X-User-Id": str(user_id)},
+    )
+    assert response.status_code == 422
+
+    # Test body exceeds max length (280 chars)
+    long_body = "x" * 281
+    response = client.post(
+        f"/sessions/{code}/questions",
+        json={"body": long_body},
+        headers={"X-User-Id": str(user_id)},
+    )
+    assert response.status_code == 422
+
+    # Test whitespace-only body (service-level validation via ValueError → 422)
+    response = client.post(
+        f"/sessions/{code}/questions",
+        json={"body": "   "},
+        headers={"X-User-Id": str(user_id)},
+    )
+    assert response.status_code == 422
+    body = response.json()
+    assert "detail" in body
+    assert "empty" in body["detail"].lower()
+
