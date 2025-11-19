@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>LearnJCU Interactive</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="css/styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!--Google Icons-->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+</head>
+
+<body>
+    <div class="container">
+
+        <header>
+            <div class="page-logo">
+
+                <img src="images/logo_icon.png" alt="JCU Icon" class="jcu-page-logo">
+                <h1 class="learnjcu-heading-page">LearnJCU<br>Interactive</h1>
+
+            </div>
+
+            <div class="session-header-info">
+                <div class="session-name">Session Name</div> <!--TO DO: create JS variable-->
+                <div class="lecturer-name">Lecturer name</div> <!--TO DO: create JS variable-->
+            </div>
+
+            <div class="student-count">
+                <span class="material-symbols-outlined students">group</span>
+                <span>N Students Online<span> <!--TO DO: create JS variable-->
+            </div>
+
+        </header>
+
+        <div class="app-container">
+
+            <div class="main-layout-wrapper">
+
+                <div class="main-content-card">
+
+                    <div class="discussion-list">
+
+                        <div class="empty-feed">
+                            <span class="material-symbols-outlined large-icon">chat</span>
+                            <p><strong>Be the first to ask a question!</strong></p>
+                            <p>Your questions will appear here once you hit "Post."</p>
+                        </div>
+
+                    </div>
+
+                    <div class="lecturer-sidebar">
+
+                        <hr class="sidebar-divider">
+
+                        <div class="sidebar-participation">
+                            <h2>Participation</h2>
+                            <div class="sidebar-stats">
+                                <div class="stat-item new-questions">
+                                    <span class="stat-count">[N]</span> New Question
+                                </div>
+
+                                <div class="stat-item unanswered-questions">
+                                    <span class="stat-count">[N]</span> Unanswered Questions
+                                </div>
+                            </div>
+
+
+                            <div class="participant-list-container">
+                                <div class="participant-card lecturer">
+                                    <div class="user-info">
+                                        <span class="user-name">[Lecturer Name (Creator)]</span>
+                                        <span class="tag tag-educator">EDUCATOR</span>
+                                    </div>
+                                    <div class="post-info">
+                                        No Responses | No Replies
+                                    </div>
+                                </div>
+                                <div class="participant-card">
+                                    <div class="user-info">
+                                        <span class="user-name">[Participant Name]</span>
+                                    </div>
+                                    <div class="post-info">
+                                        No Responses | No Replies
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button class="end-session-button">End Session</button>
+
+                    </div>
+
+
+                    <!-- Load scripts in dependency order: utils → components → api → ui -->
+                    <script src="js/utils.js"></script>
+                    <script src="js/components.js"></script>
+                    <script src="js/api.js"></script>
+                    <script src="js/ui.js"></script>
+
+                </div>
+
+                <footer>
+                    <img src="images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
+                </footer>
+
+
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

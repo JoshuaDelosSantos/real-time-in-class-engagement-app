@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>LearnJCU Interactive</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!--Google Icons-->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,100..900;1,100..900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+</head>
+
+<body>
+    <div class="container">
+
+        <header>
+            <div class="page-logo">
+
+                <img src="/static/images/logo_icon.png" alt="JCU Icon" class="jcu-page-logo">
+                <h1 class="learnjcu-heading-page">LearnJCU<br>Interactive</h1>
+
+            </div>
+
+            <div class="session-header-info">
+                <div class="session-name">Session Name</div> <!--TO DO: create JS variable-->
+                <div class="lecturer-name">Lecturer name</div> <!--TO DO: create JS variable-->
+            </div>
+
+            <div class="student-count">
+                <span class="material-symbols-outlined students">group</span>
+                <span>N Students Online<span> <!--TO DO: create JS variable-->
+            </div>
+
+        </header>
+
+
+
+        <div class="main-content-card">
+
+            <div class="discussion-list">
+
+                <div class="empty-feed">
+                    <span class="material-symbols-outlined large-icon">chat</span>
+                    <p><strong>Be the first to ask a question!</strong></p>
+                    <p>Your questions will appear here once you hit "Post."</p>
+                </div>
+
+            </div>
+
+            <div class="input-area">
+                <input type="text" placeholder="Type question here">
+                <button class="post-button">Post</button>
+
+                <div class="toggle-wrapper">
+                    <label class="switch">
+                        <input type="checkbox">
+                        <span class="slider round"></span>
+                    </label>
+                    <span class="anon-label">Ask Anonymously</span>
+                </div>
+            </div>
+
+
+            <!-- Load scripts in dependency order: utils → components → api → ui -->
+            <script src="/static/js/utils.js"></script>
+            <script src="/static/js/components.js"></script>
+            <script src="/static/js/api.js"></script>
+            <script src="/static/js/ui.js"></script>
+
+        </div>
+
+        <footer>
+            <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
+        </footer>
+
+
+    </div>
+
+</body>
+
+</html>

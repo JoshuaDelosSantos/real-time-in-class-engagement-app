@@ -443,7 +443,7 @@ function renderCreateError(element, errorMessage) {
  * @param {string} displayName - User's display name
  */
 function renderJoinSuccess(element, session, displayName) {
-  const sessionUrl = `/static/session.html?code=${escapeHtml(session.code)}`;
+  const sessionUrl = `/static/class-discussion-student.html?code=${escapeHtml(session.code)}`;
   
   element.innerHTML = `
     <div class="success-message">
@@ -537,7 +537,7 @@ function checkActiveSession() {
       <div class="session-card">
         <div class="session-title">${escapeHtml(session.title)}</div>
         <div class="session-meta">Code: ${escapeHtml(session.code)}</div>
-        <a href="/static/session.html?code=${escapeHtml(session.code)}" class="button">Continue Session</a>
+        <a href="/static/class-discussion-student.html?code=${escapeHtml(session.code)}" class="button">Continue Session</a>
       </div>
     `;
   } catch (error) {
@@ -552,3 +552,394 @@ if (document.readyState === 'loading') {
 } else {
   initializeApp();
 }
+
+// New
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. DOM Elements and Constants
+    const postButton = document.querySelector('.post-button');
+    const questionInput = document.querySelector('.input-area input[type="text"]');
+    const discussionList = document.querySelector('.discussion-list');
+    
+    // Cloning the template for the empty state message
+    const emptyFeedTemplate = document.querySelector('.empty-feed');
+    const emptyFeed = emptyFeedTemplate ? emptyFeedTemplate.cloneNode(true) : null;
+    
+    const anonToggle = document.querySelector('.switch input[type="checkbox"]');
+    
+    const STORAGE_KEY = 'jcu_interactive_questions';
+    const knownUserName = "Current User Name"; 
+    const NEW_QUESTION_CUTOFF_MS = 5 * 60 * 1000; 
+
+    // Critical Check: If the core elements are missing, stop execution silently.
+    if (!postButton || !questionInput || !discussionList) {
+        return;
+    }
+
+    // --- Initialization ---
+    loadQuestions();
+    
+    // 2. Event Listeners (Delegated & Direct)
+    postButton.addEventListener('click', handlePostQuestion);
+    
+    // Event Delegation for all actions within the discussion list (Vote, Reply Post, Toggles)
+    discussionList.addEventListener('click', (e) => {
+        // Prevent default action for link clicks
+        e.preventDefault(); 
+        
+        // 1. Check for VOTE action (Highest priority)
+        const voteAction = e.target.closest('.vote-action');
+        if (voteAction && !e.target.closest('.card-footer')) {
+            handleVote(e, voteAction);
+            return; 
+        }
+
+        // 2. Check for REPLY SUBMISSION button click
+        const replyPostButton = e.target.closest('.reply-post-button');
+        if (replyPostButton) {
+            handlePostReply(e);
+            return;
+        }
+
+        // 3. Check for SHOW/HIDE Replies TOGGLE click (The count link)
+        const repliesToggle = e.target.closest('.replies-toggle'); 
+        if (repliesToggle) {
+            handleRepliesToggle(e);
+            return;
+        }
+
+        // 4. Check for REPLY INPUT BOX TOGGLE click (The "Reply" text link)
+        const replyToggleLink = e.target.closest('.reply-action');
+        if (replyToggleLink) {
+            handleReplyToggle(e);
+            return;
+        }
+    });
+
+    // =======================================================
+    // --- CORE LOGIC FUNCTIONS ---
+    // =======================================================
+    
+    function handlePostQuestion() {
+        const questionText = questionInput.value.trim();
+
+        if (questionText) {
+            const isAnonymous = anonToggle.checked;
+            const author = isAnonymous ? "Anonymous" : knownUserName;
+            
+            const newQuestion = {
+                id: Date.now() + Math.random(), 
+                author: author,
+                text: questionText,
+                timestamp: Date.now(), 
+                isAnswered: false, 
+                votes: 0,
+                replies: [] 
+            };
+            
+            const questions = getStoredQuestions();
+            questions.unshift(newQuestion); 
+            saveQuestions(questions);
+
+            renderQuestions(questions);
+
+            questionInput.value = '';
+            anonToggle.checked = false;
+        } else {
+            questionInput.placeholder = "Please type your question here!";
+            questionInput.focus();
+        }
+    }
+
+    // --- Vote/Like Logic ---
+
+    function handleVote(e, voteActionElement) {
+        e.preventDefault(); 
+
+        const questionCard = voteActionElement.closest('.question-card');
+        const questionId = parseFloat(questionCard.getAttribute('data-id'));
+        
+        let questions = getStoredQuestions();
+        const qIndex = questions.findIndex(q => q.id === questionId);
+        
+        if (qIndex === -1) return;
+
+        let question = questions[qIndex];
+        const countSpan = voteActionElement.querySelector('.count'); 
+        
+        if (!countSpan) return;
+
+        const hasVoted = voteActionElement.classList.contains('voted');
+
+        if (hasVoted) {
+            question.votes -= 1;
+            voteActionElement.classList.remove('voted');
+            
+        } else {
+            question.votes += 1;
+            voteActionElement.classList.add('voted');
+        }
+        
+        countSpan.textContent = question.votes;
+        saveQuestions(questions);
+    }
+    
+    // --- Reply Input Toggle Logic ---
+    
+    function handleReplyToggle(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const card = e.target.closest('.question-card');
+        if (card) {
+            const inputWrapper = card.querySelector('.reply-input-wrapper');
+            if (inputWrapper) {
+                const isHidden = inputWrapper.style.display === 'none' || inputWrapper.style.display === '';
+                inputWrapper.style.display = isHidden ? 'flex' : 'none';
+                
+                if (isHidden) {
+                    inputWrapper.querySelector('input').focus();
+                }
+            }
+        }
+    }
+
+    // --- Reply Post Logic ---
+    
+    function handlePostReply(e) {
+        e.preventDefault(); 
+        e.stopPropagation(); 
+
+        const questionCard = e.target.closest('.question-card');
+        if (!questionCard) return;
+
+        const questionId = parseFloat(questionCard.getAttribute('data-id'));
+        
+        const inputWrapper = e.target.closest('.reply-input-wrapper');
+        const replyInput = inputWrapper.querySelector('.reply-input');
+        const repliesContainer = questionCard.querySelector('.replies-container');
+        const replyText = replyInput.value.trim();
+
+        if (replyText && repliesContainer) {
+            
+            const newReply = {
+                author: knownUserName,
+                text: replyText,
+                timestamp: Date.now(),
+                isApproved: false,
+            };
+            
+            let questions = getStoredQuestions();
+            const qIndex = questions.findIndex(q => q.id === questionId);
+            
+            if (qIndex !== -1) {
+                questions[qIndex].replies.unshift(newReply); 
+                saveQuestions(questions);
+                
+                const newReplyHtml = createReplyHtml(newReply);
+                repliesContainer.insertAdjacentHTML('afterbegin', newReplyHtml);
+
+                const currentCount = questions[qIndex].replies.length;
+                updateReplyCount(questionCard, currentCount);
+
+                inputWrapper.style.display = 'none';
+                replyInput.value = '';
+            }
+        }
+    }
+    
+    // --- Replies Container Toggle Logic ---
+    
+    function handleRepliesToggle(e) {
+        const toggleElement = e.target.closest('.replies-toggle');
+        if (!toggleElement) return;
+        
+        const card = toggleElement.closest('.question-card');
+        const repliesContainer = card.querySelector('.replies-container');
+        
+        const questionId = parseFloat(card.getAttribute('data-id'));
+        const questions = getStoredQuestions();
+        const question = questions.find(q => q.id === questionId);
+        
+        if (!question || question.replies.length === 0) return;
+
+        const isOpen = repliesContainer.classList.contains('open');
+
+        if (isOpen) {
+            repliesContainer.classList.remove('open');
+            toggleElement.setAttribute('data-replies-open', 'false');
+        } else {
+            repliesContainer.classList.add('open');
+            toggleElement.setAttribute('data-replies-open', 'true');
+        }
+    }
+
+    // =======================================================
+    // --- RENDERING & HELPER FUNCTIONS ---
+    // =======================================================
+    
+    function renderQuestions(questions) {
+        discussionList.innerHTML = ''; 
+
+        if (questions.length === 0) {
+            if (emptyFeed) {
+                discussionList.appendChild(emptyFeed);
+                emptyFeed.style.display = 'flex';
+            }
+        } else {
+            questions.forEach(question => {
+                const cardHTML = createQuestionCard(question);
+                discussionList.insertAdjacentHTML('beforeend', cardHTML);
+            });
+        }
+    }
+    
+    function getStoredQuestions() {
+        // ... (Your implementation remains the same)
+        const stored = localStorage.getItem(STORAGE_KEY);
+        try {
+            const questions = stored ? JSON.parse(stored) : [];
+            return questions.map(q => {
+                let id = parseFloat(q.id);
+                if (isNaN(id)) {
+                    id = Date.now() + Math.random(); 
+                }
+                return {
+                    ...q,
+                    id: id,
+                    replies: q.replies || [] 
+                };
+            });
+        } catch (e) {
+            console.error("Error parsing questions from Local Storage:", e);
+            return [];
+        }
+    }
+    
+    function saveQuestions(questions) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(questions));
+    }
+    
+    function loadQuestions() {
+        const questions = getStoredQuestions();
+        renderQuestions(questions);
+    }
+    
+    function updateReplyCount(cardElement, count) {
+        const replyCountSpan = cardElement.querySelector('.card-footer .footer-right span:first-child');
+        if (replyCountSpan) {
+            const arrowIcon = count > 0 ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+            replyCountSpan.innerHTML = `Show Reply (${count}) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span>`;
+        }
+    }
+    
+    function isQuestionNew(timestamp) {
+        const ageMs = Date.now() - timestamp; 
+        return ageMs < NEW_QUESTION_CUTOFF_MS;
+    }
+
+    function getQuestionTag(question) {
+        if (question.isAnswered) {
+             return { text: "ANSWERED", className: "tag-answered" };
+        }
+        if (isQuestionNew(question.timestamp)) {
+            return { text: "NEW", className: "tag-new" };
+        } else {
+            return { text: "OLD", className: "tag-old" };
+        }
+    }
+
+    function formatTimestamp(ms) {
+        const seconds = Math.floor((Date.now() - ms) / 1000);
+        if (seconds < 5) return 'just now';
+        if (seconds < 60) return `${seconds} secs ago`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes} mins ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours} hours ago`;
+        return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function createReplyHtml(reply) {
+        const displayTime = formatTimestamp(reply.timestamp);
+        let tagHtml = '';
+        if (reply.isApproved) {
+            tagHtml = `<span class="tag tag-approved">APPROVED ANSWER</span>`;
+        }
+        
+        return `
+            <div class="nested-reply-wrapper">
+                <div class="nested-reply">
+                    <div class="card-header">
+                        <div class="author-row">
+                            <span class="author-name">${reply.author}</span>
+                            ${tagHtml}
+                        </div>
+                    </div>
+                    <div class="timestamp">${displayTime}</div>
+                    <div class="reply-text">
+                        ${reply.text}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function createQuestionCard(question) {
+        const displayTime = formatTimestamp(question.timestamp);
+        const tag = getQuestionTag(question); 
+        const dataId = question.id; 
+        
+        const votedClass = ''; 
+        const iconSymbol = 'thumb_up'; 
+        
+        let repliesHtml = '';
+        if (question.replies && question.replies.length > 0) {
+            repliesHtml = [...question.replies].reverse().map(createReplyHtml).join('');
+        }
+
+        const replyInputHtml = `
+            <div class="reply-input-wrapper" style="display: none;">
+                <input type="text" placeholder="Add a reply..." class="reply-input">
+                <button class="reply-post-button" data-question-id="${dataId}">Post</button>
+            </div>
+        `;
+        
+        const repliesExist = question.replies.length > 0;
+        const toggleState = 'false'; 
+        const arrowIcon = repliesExist ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+        // Note: The toggle state starts closed. The replies container needs the 'open' class only if the user clicks it.
+
+        return `
+            <div class="question-card" data-id="${dataId}">
+              <div class="card-header">
+                <div class="author-row">
+                  <span class="author-name">${question.author}</span>
+                  <span class="tag ${tag.className}">${tag.text}</span>
+                </div>
+                <div class="vote-action ${votedClass}">
+                  <span class="material-symbols-outlined vote-icon">${iconSymbol}</span>
+                  <span class="count">${question.votes}</span>
+                </div>
+              </div>
+              <div class="timestamp">${displayTime}</div>
+              
+              <div class="question-bubble">
+                ${question.text}
+              </div>
+              
+              <div class="card-footer">
+                <div class="footer-left">
+                  <span class="reply-action action-link"><span class="material-symbols-outlined icon-sm">reply</span> Reply</span>
+                </div>
+                <div class="footer-right replies-toggle" data-replies-open="${toggleState}">
+                  <span class="action-link">Show Reply (${question.replies.length}) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span></span>
+                </div>
+              </div>
+              ${replyInputHtml}
+              <div class="replies-container">
+                  ${repliesHtml}
+              </div>
+            </div>
+        `;
+    }
+});
