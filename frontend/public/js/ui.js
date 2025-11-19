@@ -28,7 +28,7 @@ function renderDynamicForms() {
     console.warn('Dynamic forms container not found');
     return;
   }
-  
+
   // Create Session Form
   const createSessionHTML = createFormSection({
     id: 'create-form',
@@ -54,7 +54,7 @@ function renderDynamicForms() {
     outputId: 'create-output',
     outputInitialText: 'Fill out the form above to create a new session'
   });
-  
+
   // Join Session Form (refactored from hardcoded HTML)
   const joinSessionHTML = createFormSection({
     id: 'join-form',
@@ -85,7 +85,7 @@ function renderDynamicForms() {
     outputId: 'join-output',
     outputInitialText: 'Enter a session code and your name to join'
   });
-  
+
   // Inject both forms
   container.innerHTML = createSessionHTML + joinSessionHTML;
 }
@@ -96,12 +96,12 @@ function renderDynamicForms() {
 function setupHealthCheck() {
   const button = document.getElementById('ping');
   const output = document.getElementById('output');
-  
+
   button.addEventListener('click', async () => {
     // Show loading state
     output.textContent = 'Checking…';
     button.disabled = true;
-    
+
     try {
       const data = await checkHealth();
       renderHealthStatus(output, data);
@@ -119,12 +119,12 @@ function setupHealthCheck() {
 function setupSessionsFetch() {
   const button = document.getElementById('fetch-sessions');
   const output = document.getElementById('sessions-output');
-  
+
   button.addEventListener('click', async () => {
     // Show loading state
     showLoading(output);
     button.disabled = true;
-    
+
     try {
       const sessions = await fetchSessions();
       renderSessions(output, sessions);
@@ -145,52 +145,52 @@ function setupCreateSession() {
   const hostNameInput = document.getElementById('host-name');
   const submitButton = document.getElementById('create-button');
   const output = document.getElementById('create-output');
-  
+
   // DOM guards
   if (!form || !titleInput || !hostNameInput || !submitButton || !output) {
     console.warn('Create session form elements not found, skipping setup');
     return;
   }
-  
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    
+
     const title = titleInput.value.trim();
     const hostName = hostNameInput.value.trim();
-    
+
     // Validation
     if (!title || title.length < 1) {
       renderError(output, 'Please enter a session title');
       return;
     }
-    
+
     if (title.length > 200) {
       renderError(output, 'Session title must be 200 characters or less');
       return;
     }
-    
+
     if (!hostName || hostName.length < 1) {
       renderError(output, 'Please enter your name as host');
       return;
     }
-    
+
     if (hostName.length > 100) {
       renderError(output, 'Host name must be 100 characters or less');
       return;
     }
-    
+
     // Disable during request
     submitButton.disabled = true;
     titleInput.disabled = true;
     hostNameInput.disabled = true;
     showLoading(output, 'Creating session…');
-    
+
     try {
       const session = await createSession({
         title: title,
         host_display_name: hostName
       });
-      
+
       // Store created session info
       sessionStorage.setItem('createdSession', JSON.stringify({
         code: session.code,
@@ -198,10 +198,10 @@ function setupCreateSession() {
         hostName: hostName,
         createdAt: new Date().toISOString()
       }));
-      
+
       renderCreateSuccess(output, session);
       form.reset();
-      
+
     } catch (error) {
       renderCreateError(output, error.message);
     } finally {
@@ -221,54 +221,54 @@ function setupJoinSession() {
   const nameInput = document.getElementById('display-name');
   const submitButton = document.getElementById('join-button');
   const output = document.getElementById('join-output');
-  
+
   // DOM guards
   if (!form || !codeInput || !nameInput || !submitButton || !output) {
     console.warn('Join session form elements not found, skipping setup');
     return;
   }
-  
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    
+
     const code = codeInput.value.trim().toUpperCase();
     const displayName = nameInput.value.trim();
-    
+
     // Validation
     if (!code || code.length !== 6) {
       renderError(output, 'Please enter a valid 6-character session code');
       return;
     }
-    
+
     if (!displayName || displayName.length < 1) {
       renderError(output, 'Please enter your display name');
       return;
     }
-    
+
     if (displayName.length > 100) {
       renderError(output, 'Display name must be 100 characters or less');
       return;
     }
-    
+
     // Disable during request
     submitButton.disabled = true;
     codeInput.disabled = true;
     nameInput.disabled = true;
     showLoading(output, 'Joining session…');
-    
+
     try {
       const session = await joinSession(code, displayName);
-      
+
       // Store session info
       sessionStorage.setItem('currentSession', JSON.stringify({
         code: session.code,
         displayName: displayName,
         joinedAt: new Date().toISOString()
       }));
-      
+
       renderJoinSuccess(output, session, displayName);
       form.reset();
-      
+
     } catch (error) {
       renderJoinError(output, error.message);
     } finally {
@@ -300,7 +300,7 @@ function renderSessions(element, sessions) {
     element.innerHTML = '<div class="empty-message">No sessions available</div>';
     return;
   }
-  
+
   const sessionCards = sessions.map(session => `
     <div class="session-card">
       <div class="session-title">${escapeHtml(session.title)}</div>
@@ -311,7 +311,7 @@ function renderSessions(element, sessions) {
       </div>
     </div>
   `).join('');
-  
+
   element.innerHTML = `<div class="session-list">${sessionCards}</div>`;
 }
 
@@ -343,7 +343,7 @@ function renderError(element, message) {
  */
 function renderCreateSuccess(element, session) {
   const sessionUrl = `/static/session.html?code=${escapeHtml(session.code)}`;
-  
+
   element.innerHTML = `
     <div class="success-message">
       <h3>✓ Session Created!</h3>
@@ -363,21 +363,21 @@ function renderCreateSuccess(element, session) {
       </div>
     </div>
   `;
-  
+
   // Store session in sessionStorage
   sessionStorage.setItem('currentSession', JSON.stringify(session));
-  
+
   // Auto-redirect with countdown (use setTimeout to ensure DOM is updated)
   setTimeout(() => {
     let countdown = 2;
     const countdownElement = element.querySelector('#redirect-countdown');
-    
+
     if (!countdownElement) {
       console.warn('Countdown element not found, redirecting immediately');
       window.location.href = sessionUrl;
       return;
     }
-    
+
     const countdownInterval = setInterval(() => {
       countdown--;
       if (countdownElement) {
@@ -388,7 +388,7 @@ function renderCreateSuccess(element, session) {
         }
       }
     }, 1000);
-    
+
     setTimeout(() => {
       clearInterval(countdownInterval);
       console.log('Redirecting to session page (create):', sessionUrl);
@@ -407,9 +407,9 @@ function renderCreateError(element, errorMessage) {
   const friendlyMessages = {
     'Host has reached maximum active sessions limit (3)': 'You\'ve reached the maximum of 3 active sessions. Please end an existing session before creating a new one.',
   };
-  
+
   const displayMessage = friendlyMessages[errorMessage] || errorMessage;
-  
+
   element.innerHTML = `
     <div class="error-message">
       <p><strong>Unable to create session</strong></p>
@@ -427,7 +427,7 @@ function renderCreateError(element, errorMessage) {
  */
 function renderJoinSuccess(element, session, displayName) {
   const sessionUrl = `/static/session.html?code=${escapeHtml(session.code)}`;
-  
+
   element.innerHTML = `
     <div class="success-message">
       <h3>✓ Successfully joined!</h3>
@@ -444,21 +444,21 @@ function renderJoinSuccess(element, session, displayName) {
       </p>
     </div>
   `;
-  
+
   // Store session in sessionStorage
   sessionStorage.setItem('currentSession', JSON.stringify(session));
-  
+
   // Auto-redirect with countdown (use setTimeout to ensure DOM is updated)
   setTimeout(() => {
     let countdown = 2;
     const countdownElement = element.querySelector('#redirect-countdown');
-    
+
     if (!countdownElement) {
       console.warn('Countdown element not found, redirecting immediately');
       window.location.href = sessionUrl;
       return;
     }
-    
+
     const countdownInterval = setInterval(() => {
       countdown--;
       if (countdownElement) {
@@ -469,7 +469,7 @@ function renderJoinSuccess(element, session, displayName) {
         }
       }
     }, 1000);
-    
+
     setTimeout(() => {
       clearInterval(countdownInterval);
       console.log('Redirecting to session page (join):', sessionUrl);
@@ -490,9 +490,9 @@ function renderJoinError(element, errorMessage) {
     'Session has ended and is no longer joinable': 'This session has ended and is no longer accepting participants.',
     'Display name is required': 'Please enter a display name (cannot be only spaces).',
   };
-  
+
   const displayMessage = friendlyMessages[errorMessage] || errorMessage;
-  
+
   element.innerHTML = `
     <div class="error-message">
       <p><strong>Unable to join session</strong></p>
@@ -507,12 +507,12 @@ function renderJoinError(element, errorMessage) {
 function checkActiveSession() {
   const sessionSection = document.getElementById('active-session-section');
   const sessionInfo = document.getElementById('active-session-info');
-  
+
   if (!sessionSection || !sessionInfo) return;
-  
+
   const sessionData = sessionStorage.getItem('currentSession');
   if (!sessionData) return;
-  
+
   try {
     const session = JSON.parse(sessionData);
     sessionSection.style.display = 'block';
@@ -535,3 +535,396 @@ if (document.readyState === 'loading') {
 } else {
   initializeApp();
 }
+
+
+
+// New
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. DOM Elements and Constants
+    const postButton = document.querySelector('.post-button');
+    const questionInput = document.querySelector('.input-area input[type="text"]');
+    const discussionList = document.querySelector('.discussion-list');
+    
+    // Cloning the template for the empty state message
+    const emptyFeedTemplate = document.querySelector('.empty-feed');
+    const emptyFeed = emptyFeedTemplate ? emptyFeedTemplate.cloneNode(true) : null;
+    
+    const anonToggle = document.querySelector('.switch input[type="checkbox"]');
+    
+    const STORAGE_KEY = 'jcu_interactive_questions';
+    const knownUserName = "Current User Name"; 
+    const NEW_QUESTION_CUTOFF_MS = 5 * 60 * 1000; 
+
+    // Critical Check: If the core elements are missing, stop execution silently.
+    if (!postButton || !questionInput || !discussionList) {
+        return;
+    }
+
+    // --- Initialization ---
+    loadQuestions();
+    
+    // 2. Event Listeners (Delegated & Direct)
+    postButton.addEventListener('click', handlePostQuestion);
+    
+    // Event Delegation for all actions within the discussion list (Vote, Reply Post, Toggles)
+    discussionList.addEventListener('click', (e) => {
+        // Prevent default action for link clicks
+        e.preventDefault(); 
+        
+        // 1. Check for VOTE action (Highest priority)
+        const voteAction = e.target.closest('.vote-action');
+        if (voteAction && !e.target.closest('.card-footer')) {
+            handleVote(e, voteAction);
+            return; 
+        }
+
+        // 2. Check for REPLY SUBMISSION button click
+        const replyPostButton = e.target.closest('.reply-post-button');
+        if (replyPostButton) {
+            handlePostReply(e);
+            return;
+        }
+
+        // 3. Check for SHOW/HIDE Replies TOGGLE click (The count link)
+        const repliesToggle = e.target.closest('.replies-toggle'); 
+        if (repliesToggle) {
+            handleRepliesToggle(e);
+            return;
+        }
+
+        // 4. Check for REPLY INPUT BOX TOGGLE click (The "Reply" text link)
+        const replyToggleLink = e.target.closest('.reply-action');
+        if (replyToggleLink) {
+            handleReplyToggle(e);
+            return;
+        }
+    });
+
+    // =======================================================
+    // --- CORE LOGIC FUNCTIONS ---
+    // =======================================================
+    
+    function handlePostQuestion() {
+        const questionText = questionInput.value.trim();
+
+        if (questionText) {
+            const isAnonymous = anonToggle.checked;
+            const author = isAnonymous ? "Anonymous" : knownUserName;
+            
+            const newQuestion = {
+                id: Date.now() + Math.random(), 
+                author: author,
+                text: questionText,
+                timestamp: Date.now(), 
+                isAnswered: false, 
+                votes: 0,
+                replies: [] 
+            };
+            
+            const questions = getStoredQuestions();
+            questions.unshift(newQuestion); 
+            saveQuestions(questions);
+
+            renderQuestions(questions);
+
+            questionInput.value = '';
+            anonToggle.checked = false;
+        } else {
+            questionInput.placeholder = "Please type your question here!";
+            questionInput.focus();
+        }
+    }
+
+    // --- Vote/Like Logic ---
+
+    function handleVote(e, voteActionElement) {
+        e.preventDefault(); 
+
+        const questionCard = voteActionElement.closest('.question-card');
+        const questionId = parseFloat(questionCard.getAttribute('data-id'));
+        
+        let questions = getStoredQuestions();
+        const qIndex = questions.findIndex(q => q.id === questionId);
+        
+        if (qIndex === -1) return;
+
+        let question = questions[qIndex];
+        const countSpan = voteActionElement.querySelector('.count'); 
+        
+        if (!countSpan) return;
+
+        const hasVoted = voteActionElement.classList.contains('voted');
+
+        if (hasVoted) {
+            question.votes -= 1;
+            voteActionElement.classList.remove('voted');
+            
+        } else {
+            question.votes += 1;
+            voteActionElement.classList.add('voted');
+        }
+        
+        countSpan.textContent = question.votes;
+        saveQuestions(questions);
+    }
+    
+    // --- Reply Input Toggle Logic ---
+    
+    function handleReplyToggle(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const card = e.target.closest('.question-card');
+        if (card) {
+            const inputWrapper = card.querySelector('.reply-input-wrapper');
+            if (inputWrapper) {
+                const isHidden = inputWrapper.style.display === 'none' || inputWrapper.style.display === '';
+                inputWrapper.style.display = isHidden ? 'flex' : 'none';
+                
+                if (isHidden) {
+                    inputWrapper.querySelector('input').focus();
+                }
+            }
+        }
+    }
+
+    // --- Reply Post Logic ---
+    
+    function handlePostReply(e) {
+        e.preventDefault(); 
+        e.stopPropagation(); 
+
+        const questionCard = e.target.closest('.question-card');
+        if (!questionCard) return;
+
+        const questionId = parseFloat(questionCard.getAttribute('data-id'));
+        
+        const inputWrapper = e.target.closest('.reply-input-wrapper');
+        const replyInput = inputWrapper.querySelector('.reply-input');
+        const repliesContainer = questionCard.querySelector('.replies-container');
+        const replyText = replyInput.value.trim();
+
+        if (replyText && repliesContainer) {
+            
+            const newReply = {
+                author: knownUserName,
+                text: replyText,
+                timestamp: Date.now(),
+                isApproved: false,
+            };
+            
+            let questions = getStoredQuestions();
+            const qIndex = questions.findIndex(q => q.id === questionId);
+            
+            if (qIndex !== -1) {
+                questions[qIndex].replies.unshift(newReply); 
+                saveQuestions(questions);
+                
+                const newReplyHtml = createReplyHtml(newReply);
+                repliesContainer.insertAdjacentHTML('afterbegin', newReplyHtml);
+
+                const currentCount = questions[qIndex].replies.length;
+                updateReplyCount(questionCard, currentCount);
+
+                inputWrapper.style.display = 'none';
+                replyInput.value = '';
+            }
+        }
+    }
+    
+    // --- Replies Container Toggle Logic ---
+    
+    function handleRepliesToggle(e) {
+        const toggleElement = e.target.closest('.replies-toggle');
+        if (!toggleElement) return;
+        
+        const card = toggleElement.closest('.question-card');
+        const repliesContainer = card.querySelector('.replies-container');
+        
+        const questionId = parseFloat(card.getAttribute('data-id'));
+        const questions = getStoredQuestions();
+        const question = questions.find(q => q.id === questionId);
+        
+        if (!question || question.replies.length === 0) return;
+
+        const isOpen = repliesContainer.classList.contains('open');
+
+        if (isOpen) {
+            repliesContainer.classList.remove('open');
+            toggleElement.setAttribute('data-replies-open', 'false');
+        } else {
+            repliesContainer.classList.add('open');
+            toggleElement.setAttribute('data-replies-open', 'true');
+        }
+    }
+
+    // =======================================================
+    // --- RENDERING & HELPER FUNCTIONS ---
+    // =======================================================
+    
+    function renderQuestions(questions) {
+        discussionList.innerHTML = ''; 
+
+        if (questions.length === 0) {
+            if (emptyFeed) {
+                discussionList.appendChild(emptyFeed);
+                emptyFeed.style.display = 'flex';
+            }
+        } else {
+            questions.forEach(question => {
+                const cardHTML = createQuestionCard(question);
+                discussionList.insertAdjacentHTML('beforeend', cardHTML);
+            });
+        }
+    }
+    
+    function getStoredQuestions() {
+        // ... (Your implementation remains the same)
+        const stored = localStorage.getItem(STORAGE_KEY);
+        try {
+            const questions = stored ? JSON.parse(stored) : [];
+            return questions.map(q => {
+                let id = parseFloat(q.id);
+                if (isNaN(id)) {
+                    id = Date.now() + Math.random(); 
+                }
+                return {
+                    ...q,
+                    id: id,
+                    replies: q.replies || [] 
+                };
+            });
+        } catch (e) {
+            console.error("Error parsing questions from Local Storage:", e);
+            return [];
+        }
+    }
+    
+    function saveQuestions(questions) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(questions));
+    }
+    
+    function loadQuestions() {
+        const questions = getStoredQuestions();
+        renderQuestions(questions);
+    }
+    
+    function updateReplyCount(cardElement, count) {
+        const replyCountSpan = cardElement.querySelector('.card-footer .footer-right span:first-child');
+        if (replyCountSpan) {
+            const arrowIcon = count > 0 ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+            replyCountSpan.innerHTML = `Show Reply (${count}) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span>`;
+        }
+    }
+    
+    function isQuestionNew(timestamp) {
+        const ageMs = Date.now() - timestamp; 
+        return ageMs < NEW_QUESTION_CUTOFF_MS;
+    }
+
+    function getQuestionTag(question) {
+        if (question.isAnswered) {
+             return { text: "ANSWERED", className: "tag-answered" };
+        }
+        if (isQuestionNew(question.timestamp)) {
+            return { text: "NEW", className: "tag-new" };
+        } else {
+            return { text: "OLD", className: "tag-old" };
+        }
+    }
+
+    function formatTimestamp(ms) {
+        const seconds = Math.floor((Date.now() - ms) / 1000);
+        if (seconds < 5) return 'just now';
+        if (seconds < 60) return `${seconds} secs ago`;
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes} mins ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours} hours ago`;
+        return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function createReplyHtml(reply) {
+        const displayTime = formatTimestamp(reply.timestamp);
+        let tagHtml = '';
+        if (reply.isApproved) {
+            tagHtml = `<span class="tag tag-approved">APPROVED ANSWER</span>`;
+        }
+        
+        return `
+            <div class="nested-reply-wrapper">
+                <div class="nested-reply">
+                    <div class="card-header">
+                        <div class="author-row">
+                            <span class="author-name">${reply.author}</span>
+                            ${tagHtml}
+                        </div>
+                    </div>
+                    <div class="timestamp">${displayTime}</div>
+                    <div class="reply-text">
+                        ${reply.text}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function createQuestionCard(question) {
+        const displayTime = formatTimestamp(question.timestamp);
+        const tag = getQuestionTag(question); 
+        const dataId = question.id; 
+        
+        const votedClass = ''; 
+        const iconSymbol = 'thumb_up'; 
+        
+        let repliesHtml = '';
+        if (question.replies && question.replies.length > 0) {
+            repliesHtml = [...question.replies].reverse().map(createReplyHtml).join('');
+        }
+
+        const replyInputHtml = `
+            <div class="reply-input-wrapper" style="display: none;">
+                <input type="text" placeholder="Add a reply..." class="reply-input">
+                <button class="reply-post-button" data-question-id="${dataId}">Post</button>
+            </div>
+        `;
+        
+        const repliesExist = question.replies.length > 0;
+        const toggleState = 'false'; 
+        const arrowIcon = repliesExist ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+        // Note: The toggle state starts closed. The replies container needs the 'open' class only if the user clicks it.
+
+        return `
+            <div class="question-card" data-id="${dataId}">
+              <div class="card-header">
+                <div class="author-row">
+                  <span class="author-name">${question.author}</span>
+                  <span class="tag ${tag.className}">${tag.text}</span>
+                </div>
+                <div class="vote-action ${votedClass}">
+                  <span class="material-symbols-outlined vote-icon">${iconSymbol}</span>
+                  <span class="count">${question.votes}</span>
+                </div>
+              </div>
+              <div class="timestamp">${displayTime}</div>
+              
+              <div class="question-bubble">
+                ${question.text}
+              </div>
+              
+              <div class="card-footer">
+                <div class="footer-left">
+                  <span class="reply-action action-link"><span class="material-symbols-outlined icon-sm">reply</span> Reply</span>
+                </div>
+                <div class="footer-right replies-toggle" data-replies-open="${toggleState}">
+                  <span class="action-link">Show Reply (${question.replies.length}) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span></span>
+                </div>
+              </div>
+              ${replyInputHtml}
+              <div class="replies-container">
+                  ${repliesHtml}
+              </div>
+            </div>
+        `;
+    }
+});
