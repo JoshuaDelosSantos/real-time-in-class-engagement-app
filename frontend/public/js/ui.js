@@ -553,6 +553,75 @@ if (document.readyState === 'loading') {
   initializeApp();
 }
 
+// Initialize class discussion pages (host and student)
+if (window.location.pathname.includes('class-discussion')) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeClassDiscussion);
+  } else {
+    initializeClassDiscussion();
+  }
+}
+
+/**
+ * Initialize class discussion page - loads session data and sets up UI
+ */
+async function initializeClassDiscussion() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const sessionCode = urlParams.get('code');
+  
+  if (!sessionCode) {
+    console.error('No session code provided');
+    return;
+  }
+  
+  try {
+    // Load session data and populate header
+    const session = await getSessionDetails(sessionCode);
+    updateSessionHeader(session);
+    
+    // If on host page, populate the lecturer participant card
+    if (window.location.pathname.includes('class-discussion-host')) {
+      populateLecturerCard(session);
+    }
+    
+  } catch (error) {
+    console.error('Failed to load session data:', error);
+  }
+}
+
+/**
+ * Update session header with real data
+ */
+function updateSessionHeader(session) {
+  const sessionNameEl = document.querySelector('.session-name');
+  const lecturerNameEl = document.querySelector('.lecturer-name');
+  const studentCountEl = document.querySelector('.student-count span:last-child');
+  
+  if (sessionNameEl) {
+    sessionNameEl.textContent = `Session: ${session.title}`;
+  }
+  
+  if (lecturerNameEl) {
+    lecturerNameEl.textContent = `Host: ${session.host.display_name}`;
+  }
+  
+  if (studentCountEl) {
+    const count = session.participant_count || 0;
+    studentCountEl.textContent = `${count} Student${count !== 1 ? 's' : ''} Online`;
+  }
+}
+
+/**
+ * Populate the lecturer participant card with session creator's name
+ */
+function populateLecturerCard(session) {
+  const lecturerCard = document.querySelector('.participant-card.lecturer .user-name');
+  
+  if (lecturerCard) {
+    lecturerCard.textContent = `${session.host.display_name} (Creator)`;
+  }
+}
+
 // New
 document.addEventListener('DOMContentLoaded', () => {
     // 1. DOM Elements and Constants
