@@ -577,12 +577,16 @@ async function initializeClassDiscussion() {
   try {
     // Load session data and populate header
     const session = await getSessionDetails(sessionCode);
-    updateSessionHeader(session);
+    const participants = await getSessionParticipants(sessionCode);
+    updateSessionHeader(session, participants);
     
     // If on host page, populate the lecturer participant card
     if (window.location.pathname.includes('class-discussion-host')) {
       populateLecturerCard(session);
     }
+    
+    // Start polling for participant count updates
+    startParticipantCountPolling(sessionCode);
     
   } catch (error) {
     console.error('Failed to load session data:', error);
@@ -592,7 +596,7 @@ async function initializeClassDiscussion() {
 /**
  * Update session header with real data
  */
-function updateSessionHeader(session) {
+function updateSessionHeader(session, participants) {
   const sessionNameEl = document.querySelector('.session-name');
   const lecturerNameEl = document.querySelector('.lecturer-name');
   const studentCountEl = document.querySelector('.student-count span:last-child');
@@ -605,11 +609,42 @@ function updateSessionHeader(session) {
     lecturerNameEl.textContent = `Host: ${session.host.display_name}`;
   }
   
-  if (studentCountEl) {
-    const count = session.participant_count || 0;
-    studentCountEl.textContent = `${count} Student${count !== 1 ? 's' : ''} Online`;
+  if (studentCountEl && participants) {
+    // Count participants excluding the host (role !== 'host')
+    const studentCount = participants.filter(p => p.role !== 'host').length;
+    studentCountEl.textContent = `${studentCount} Student${studentCount !== 1 ? 's' : ''} Online`;
   }
 }
+
+/**
+ * Start polling for participant count updates
+ */
+let participantPollInterval = null;
+
+function startParticipantCountPolling(sessionCode) {
+  // Clear any existing interval
+  if (participantPollInterval) {
+    clearInterval(participantPollInterval);
+  }
+  
+  // Poll every 5 seconds
+  participantPollInterval = setInterval(async () => {
+    try {
+      const session = await getSessionDetails(sessionCode);
+      const participants = await getSessionParticipants(sessionCode);
+      updateSessionHeader(session, participants);
+    } catch (error) {
+      console.error('Failed to update participant count:', error);
+    }
+  }, 5000);
+}
+
+// Clean up polling when page unloads
+window.addEventListener('beforeunload', () => {
+  if (participantPollInterval) {
+    clearInterval(participantPollInterval);
+  }
+});
 
 /**
  * Populate the lecturer participant card with session creator's name
