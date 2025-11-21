@@ -670,7 +670,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const anonToggle = document.querySelector('.switch input[type="checkbox"]');
     
-    const STORAGE_KEY = 'jcu_interactive_questions';
+    // Get session code from URL to make storage unique per session
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSessionCode = urlParams.get('code') || 'default';
+    const STORAGE_KEY = `jcu_interactive_questions_${currentSessionCode}`;
     const knownUserName = "Current User Name"; 
     const NEW_QUESTION_CUTOFF_MS = 5 * 60 * 1000; 
 
