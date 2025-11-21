@@ -7,13 +7,24 @@
   <link rel="stylesheet" href="/static/css/styles.css"/>
 </head>
 <body>
-  <section>
-    <button onclick="window.location.href='/static/index.html'">← Back</button>
-    <h1>Join an Existing Session</h1>
-
-    <!-- Container for injected form -->
-    <div id="dynamic-forms"></div>
-  </section>
+  <div class="container">
+    <div class="index-logo compact-logo">
+      <img src="/static/images/white_logo_icon.png" alt="JCU Icon" class="jcu-main-logo">
+      <h1 class="learnjcu-heading">LearnJCU<br>Interactive</h1>
+    </div>
+    
+    <section>
+      <!-- Container for injected form -->
+      <div id="dynamic-forms"></div>
+      <div class="form-actions">
+        <button type="button" class="back-button" onclick="window.location.href='/static/index.html'">← Back</button>
+      </div>
+    </section>
+    
+    <footer>
+      <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
+    </footer>
+  </div>
 
   <!-- Load scripts -->
   <script src="/static/js/utils.js"></script>
