@@ -208,12 +208,20 @@ function setupCreateSession() {
         host_display_name: hostName
       });
       
-      // Store created session info
+      // Store created session info with user ID
       sessionStorage.setItem('createdSession', JSON.stringify({
         code: session.code,
         title: session.title,
         hostName: hostName,
+        userId: session.host.id,
         createdAt: new Date().toISOString()
+      }));
+      
+      // Store current session with user info
+      sessionStorage.setItem('currentSession', JSON.stringify({
+        code: session.code,
+        userId: session.host.id,
+        displayName: hostName
       }));
       
       renderCreateSuccess(output, session);
@@ -276,10 +284,28 @@ function setupJoinSession() {
     try {
       const session = await joinSession(code, displayName);
       
-      // Store session info
+      // Get participants to find the user's ID - find most recent participant with matching name
+      const participants = await getSessionParticipants(code);
+      // Sort by joined_at descending to get the most recent join
+      const sortedParticipants = participants.sort((a, b) => {
+        const dateA = new Date(a.joined_at || 0);
+        const dateB = new Date(b.joined_at || 0);
+        return dateB - dateA;
+      });
+      // Find the first matching user (most recent join with this display name)
+      const currentUser = sortedParticipants.find(p => 
+        p.user.display_name.trim() === displayName.trim()
+      );
+      
+      if (!currentUser) {
+        console.error('Could not find user in participants list', { displayName, participants });
+      }
+      
+      // Store session info with user ID
       sessionStorage.setItem('currentSession', JSON.stringify({
         code: session.code,
         displayName: displayName,
+        userId: currentUser ? currentUser.user.id : null,
         joinedAt: new Date().toISOString()
       }));
       
@@ -359,7 +385,7 @@ function renderError(element, message) {
  * @param {Object} session - Created session object from API
  */
 function renderCreateSuccess(element, session) {
-  const sessionUrl = `/static/class-discussion-student.html?code=${escapeHtml(session.code)}`;
+  const sessionUrl = `/static/class-discussion-host.html?code=${escapeHtml(session.code)}`;
   
   element.innerHTML = `
     <div class="success-message">
@@ -380,9 +406,6 @@ function renderCreateSuccess(element, session) {
       </div>
     </div>
   `;
-  
-  // Store session in sessionStorage
-  sessionStorage.setItem('currentSession', JSON.stringify(session));
   
   // Auto-redirect with countdown (use setTimeout to ensure DOM is updated)
   setTimeout(() => {
@@ -657,7 +680,7 @@ function populateLecturerCard(session) {
   }
 }
 
-// New
+// Initialize question discussion functionality
 document.addEventListener('DOMContentLoaded', () => {
     // 1. DOM Elements and Constants
     const postButton = document.querySelector('.post-button');
@@ -670,20 +693,123 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const anonToggle = document.querySelector('.switch input[type="checkbox"]');
     
-    // Get session code from URL to make storage unique per session
+    // Get session code and user info from URL and sessionStorage
     const urlParams = new URLSearchParams(window.location.search);
-    const currentSessionCode = urlParams.get('code') || 'default';
-    const STORAGE_KEY = `jcu_interactive_questions_${currentSessionCode}`;
-    const knownUserName = "Current User Name"; 
+    const currentSessionCode = urlParams.get('code');
+    const sessionData = sessionStorage.getItem('currentSession');
+    let currentUserId = null;
+    let currentUserName = null;
+    
+    if (sessionData) {
+        try {
+            const session = JSON.parse(sessionData);
+            // Check if this is user session data (has userId/displayName) or session summary
+            if (session.userId !== undefined) {
+                currentUserId = session.userId;
+                currentUserName = session.displayName;
+            } else if (session.host && session.host.display_name) {
+                // If it's session summary and user is the host
+                currentUserId = session.host.id;
+                currentUserName = session.host.display_name;
+            }
+            console.log('Loaded from sessionStorage - User ID:', currentUserId, 'Name:', currentUserName);
+        } catch (e) {
+            console.error('Failed to parse session data:', e);
+        }
+    }
+    
     const NEW_QUESTION_CUTOFF_MS = 5 * 60 * 1000; 
+    let questionsPollInterval = null;
 
     // Critical Check: If the core elements are missing, stop execution silently.
     if (!postButton || !questionInput || !discussionList) {
         return;
     }
+    
+    // Critical Check: Need session code
+    if (!currentSessionCode) {
+        console.error('Missing session code');
+        return;
+    }
+    
+    // If user ID is missing, try to fetch it from participants
+    if (!currentUserId) {
+        console.warn('User ID not found in sessionStorage, will fetch from participants');
+        fetchUserIdFromParticipants().then(() => {
+            console.log('User ID fetched:', currentUserId);
+        }).catch(err => {
+            console.error('Failed to fetch user ID:', err);
+        });
+    }
+    
+    async function fetchUserIdFromParticipants() {
+        try {
+            const participants = await getSessionParticipants(currentSessionCode);
+            console.log('Looking for user:', currentUserName, 'in participants:', participants);
+            
+            // If we don't have a username, we can't match - need to prompt user
+            if (!currentUserName) {
+                console.error('No username available to match against participants');
+                
+                // Try to identify user by asking them or using the most recent participant
+                // For now, let's use the most recent non-host participant
+                const sortedParticipants = participants
+                    .filter(p => p.role !== 'host')
+                    .sort((a, b) => {
+                        const dateA = new Date(a.joined_at || 0);
+                        const dateB = new Date(b.joined_at || 0);
+                        return dateB - dateA;
+                    });
+                
+                if (sortedParticipants.length > 0) {
+                    const recentUser = sortedParticipants[0];
+                    currentUserId = recentUser.user.id;
+                    currentUserName = recentUser.user.display_name;
+                    console.log('Using most recent participant:', currentUserName, currentUserId);
+                    
+                    // Update sessionStorage
+                    sessionStorage.setItem('currentSession', JSON.stringify({
+                        code: currentSessionCode,
+                        userId: currentUserId,
+                        displayName: currentUserName
+                    }));
+                    return;
+                }
+            }
+            
+            // Sort by joined_at descending to get the most recent join
+            const sortedParticipants = participants.sort((a, b) => {
+                const dateA = new Date(a.joined_at || 0);
+                const dateB = new Date(b.joined_at || 0);
+                return dateB - dateA;
+            });
+            
+            // Find matching user (case-insensitive, trimmed)
+            const currentUser = sortedParticipants.find(p => 
+                p.user.display_name.trim().toLowerCase() === currentUserName.trim().toLowerCase()
+            );
+            
+            if (currentUser) {
+                currentUserId = currentUser.user.id;
+                console.log('Found user ID:', currentUserId);
+                // Update sessionStorage with user ID
+                sessionStorage.setItem('currentSession', JSON.stringify({
+                    code: currentSessionCode,
+                    userId: currentUserId,
+                    displayName: currentUserName
+                }));
+            } else {
+                console.error('User not found in participants list. Looking for:', currentUserName);
+                console.log('Available participants:', participants.map(p => p.user.display_name));
+            }
+        } catch (error) {
+            console.error('Error fetching user ID from participants:', error);
+        }
+    }
 
     // --- Initialization ---
     loadQuestions();
+    startQuestionsPolling();
     
     // 2. Event Listeners (Delegated & Direct)
     postButton.addEventListener('click', handlePostQuestion);
@@ -726,158 +852,97 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- CORE LOGIC FUNCTIONS ---
     // =======================================================
     
-    function handlePostQuestion() {
+    async function handlePostQuestion() {
+        console.log('=== POST BUTTON CLICKED ===');
+        console.log('Session Code:', currentSessionCode);
+        console.log('User ID (before check):', currentUserId);
+        console.log('User Name:', currentUserName);
+        console.log('SessionStorage:', sessionStorage.getItem('currentSession'));
+        
         const questionText = questionInput.value.trim();
 
-        if (questionText) {
-            const isAnonymous = anonToggle.checked;
-            const author = isAnonymous ? "Anonymous" : knownUserName;
-            
-            const newQuestion = {
-                id: Date.now() + Math.random(), 
-                author: author,
-                text: questionText,
-                timestamp: Date.now(), 
-                isAnswered: false, 
-                votes: 0,
-                replies: [] 
-            };
-            
-            const questions = getStoredQuestions();
-            questions.unshift(newQuestion); 
-            saveQuestions(questions);
-
-            renderQuestions(questions);
-
-            questionInput.value = '';
-            anonToggle.checked = false;
-        } else {
+        if (!questionText) {
             questionInput.placeholder = "Please type your question here!";
             questionInput.focus();
+            return;
         }
-    }
-
-    // --- Vote/Like Logic ---
-
-    function handleVote(e, voteActionElement) {
-        e.preventDefault(); 
-
-        const questionCard = voteActionElement.closest('.question-card');
-        const questionId = parseFloat(questionCard.getAttribute('data-id'));
         
-        let questions = getStoredQuestions();
-        const qIndex = questions.findIndex(q => q.id === questionId);
-        
-        if (qIndex === -1) return;
-
-        let question = questions[qIndex];
-        const countSpan = voteActionElement.querySelector('.count'); 
-        
-        if (!countSpan) return;
-
-        const hasVoted = voteActionElement.classList.contains('voted');
-
-        if (hasVoted) {
-            question.votes -= 1;
-            voteActionElement.classList.remove('voted');
+        // Check if we have user ID, if not try to fetch it
+        if (!currentUserId) {
+            console.log('User ID not available, attempting to fetch...');
             
-        } else {
-            question.votes += 1;
-            voteActionElement.classList.add('voted');
+            // If no username, ask user to identify themselves
+            if (!currentUserName) {
+                const displayName = prompt('Please enter your display name to continue:');
+                if (!displayName || !displayName.trim()) {
+                    alert('Display name is required to post questions.');
+                    return;
+                }
+                currentUserName = displayName.trim();
+            }
+            
+            await fetchUserIdFromParticipants();
+            console.log('User ID (after fetch):', currentUserId);
+            
+            if (!currentUserId) {
+                console.error('FAILED: Could not get user ID');
+                alert('Unable to find your user account. Please make sure you joined the session properly.');
+                return;
+            }
         }
+
+        console.log('Proceeding with post - User ID:', currentUserId);
         
-        countSpan.textContent = question.votes;
-        saveQuestions(questions);
+        // Disable button during submission
+        postButton.disabled = true;
+        const originalText = postButton.textContent;
+        postButton.textContent = 'Posting...';
+        
+        try {
+            console.log('Calling submitQuestion API...');
+            await submitQuestion(currentSessionCode, currentUserId, questionText);
+            console.log('Question posted successfully');
+            
+            // Clear input and reset toggle
+            questionInput.value = '';
+            anonToggle.checked = false;
+            
+            // Reload questions to show the new one
+            await loadQuestions();
+            
+        } catch (error) {
+            console.error('Failed to post question:', error);
+            alert('Failed to post question: ' + error.message);
+        } finally {
+            postButton.disabled = false;
+            postButton.textContent = originalText;
+        }
+    }
+
+    // --- Vote/Like Logic (Coming Soon) ---
+    function handleVote(e, voteActionElement) {
+        e.preventDefault();
+        alert('Voting feature coming soon!');
     }
     
-    // --- Reply Input Toggle Logic ---
-    
+    // --- Reply Input Toggle Logic (Coming Soon) ---
     function handleReplyToggle(e) {
         e.preventDefault();
         e.stopPropagation();
-
-        const card = e.target.closest('.question-card');
-        if (card) {
-            const inputWrapper = card.querySelector('.reply-input-wrapper');
-            if (inputWrapper) {
-                const isHidden = inputWrapper.style.display === 'none' || inputWrapper.style.display === '';
-                inputWrapper.style.display = isHidden ? 'flex' : 'none';
-                
-                if (isHidden) {
-                    inputWrapper.querySelector('input').focus();
-                }
-            }
-        }
+        alert('Reply feature coming soon!');
     }
 
-    // --- Reply Post Logic ---
-    
+    // --- Reply Post Logic (Coming Soon) ---
     function handlePostReply(e) {
         e.preventDefault(); 
-        e.stopPropagation(); 
-
-        const questionCard = e.target.closest('.question-card');
-        if (!questionCard) return;
-
-        const questionId = parseFloat(questionCard.getAttribute('data-id'));
-        
-        const inputWrapper = e.target.closest('.reply-input-wrapper');
-        const replyInput = inputWrapper.querySelector('.reply-input');
-        const repliesContainer = questionCard.querySelector('.replies-container');
-        const replyText = replyInput.value.trim();
-
-        if (replyText && repliesContainer) {
-            
-            const newReply = {
-                author: knownUserName,
-                text: replyText,
-                timestamp: Date.now(),
-                isApproved: false,
-            };
-            
-            let questions = getStoredQuestions();
-            const qIndex = questions.findIndex(q => q.id === questionId);
-            
-            if (qIndex !== -1) {
-                questions[qIndex].replies.unshift(newReply); 
-                saveQuestions(questions);
-                
-                const newReplyHtml = createReplyHtml(newReply);
-                repliesContainer.insertAdjacentHTML('afterbegin', newReplyHtml);
-
-                const currentCount = questions[qIndex].replies.length;
-                updateReplyCount(questionCard, currentCount);
-
-                inputWrapper.style.display = 'none';
-                replyInput.value = '';
-            }
-        }
+        e.stopPropagation();
+        alert('Reply feature coming soon!');
     }
     
-    // --- Replies Container Toggle Logic ---
-    
+    // --- Replies Container Toggle Logic (Coming Soon) ---
     function handleRepliesToggle(e) {
-        const toggleElement = e.target.closest('.replies-toggle');
-        if (!toggleElement) return;
-        
-        const card = toggleElement.closest('.question-card');
-        const repliesContainer = card.querySelector('.replies-container');
-        
-        const questionId = parseFloat(card.getAttribute('data-id'));
-        const questions = getStoredQuestions();
-        const question = questions.find(q => q.id === questionId);
-        
-        if (!question || question.replies.length === 0) return;
-
-        const isOpen = repliesContainer.classList.contains('open');
-
-        if (isOpen) {
-            repliesContainer.classList.remove('open');
-            toggleElement.setAttribute('data-replies-open', 'false');
-        } else {
-            repliesContainer.classList.add('open');
-            toggleElement.setAttribute('data-replies-open', 'true');
-        }
+        e.preventDefault();
+        alert('Replies feature coming soon!');
     }
 
     // =======================================================
@@ -900,110 +965,76 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    function getStoredQuestions() {
-        // ... (Your implementation remains the same)
-        const stored = localStorage.getItem(STORAGE_KEY);
+    async function loadQuestions() {
         try {
-            const questions = stored ? JSON.parse(stored) : [];
-            return questions.map(q => {
-                let id = parseFloat(q.id);
-                if (isNaN(id)) {
-                    id = Date.now() + Math.random(); 
-                }
-                return {
-                    ...q,
-                    id: id,
-                    replies: q.replies || [] 
-                };
-            });
-        } catch (e) {
-            console.error("Error parsing questions from Local Storage:", e);
-            return [];
+            const questions = await getSessionQuestions(currentSessionCode);
+            renderQuestions(questions);
+        } catch (error) {
+            console.error('Failed to load questions:', error);
         }
     }
     
-    function saveQuestions(questions) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(questions));
+    function startQuestionsPolling() {
+        // Clear any existing interval
+        if (questionsPollInterval) {
+            clearInterval(questionsPollInterval);
+        }
+        
+        // Poll every 5 seconds
+        questionsPollInterval = setInterval(async () => {
+            await loadQuestions();
+        }, 5000);
     }
     
-    function loadQuestions() {
-        const questions = getStoredQuestions();
-        renderQuestions(questions);
-    }
+    // Clean up polling when page unloads
+    window.addEventListener('beforeunload', () => {
+        if (questionsPollInterval) {
+            clearInterval(questionsPollInterval);
+        }
+    });
     
-    function updateReplyCount(cardElement, count) {
-        const replyCountSpan = cardElement.querySelector('.card-footer .footer-right span:first-child');
-        if (replyCountSpan) {
-            const arrowIcon = count > 0 ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
-            replyCountSpan.innerHTML = `Show Reply (${count}) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span>`;
-        }
-    }
-    
-    function isQuestionNew(timestamp) {
-        const ageMs = Date.now() - timestamp; 
-        return ageMs < NEW_QUESTION_CUTOFF_MS;
-    }
-
-    function getQuestionTag(question) {
-        if (question.isAnswered) {
-             return { text: "ANSWERED", className: "tag-answered" };
-        }
-        if (isQuestionNew(question.timestamp)) {
-            return { text: "NEW", className: "tag-new" };
-        } else {
-            return { text: "OLD", className: "tag-old" };
-        }
-    }
-
-    function formatTimestamp(ms) {
-        const seconds = Math.floor((Date.now() - ms) / 1000);
+    function formatTimestampFromDate(date) {
+        const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
         if (seconds < 5) return 'just now';
         if (seconds < 60) return `${seconds} secs ago`;
         const minutes = Math.floor(seconds / 60);
         if (minutes < 60) return `${minutes} mins ago`;
         const hours = Math.floor(minutes / 60);
         if (hours < 24) return `${hours} hours ago`;
-        return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
     }
-
-    function createReplyHtml(reply) {
-        const displayTime = formatTimestamp(reply.timestamp);
-        let tagHtml = '';
-        if (reply.isApproved) {
-            tagHtml = `<span class="tag tag-approved">APPROVED ANSWER</span>`;
+    
+    function getQuestionTagFromAPI(question) {
+        if (question.status === 'answered') {
+            return { text: "ANSWERED", className: "tag-answered" };
         }
         
-        return `
-            <div class="nested-reply-wrapper">
-                <div class="nested-reply">
-                    <div class="card-header">
-                        <div class="author-row">
-                            <span class="author-name">${reply.author}</span>
-                            ${tagHtml}
-                        </div>
-                    </div>
-                    <div class="timestamp">${displayTime}</div>
-                    <div class="reply-text">
-                        ${reply.text}
-                    </div>
-                </div>
-            </div>
-        `;
+        // Check if question is new (created within last 5 minutes)
+        const createdDate = new Date(question.created_at);
+        const ageMs = Date.now() - createdDate.getTime();
+        if (ageMs < NEW_QUESTION_CUTOFF_MS) {
+            return { text: "NEW", className: "tag-new" };
+        }
+        
+        return { text: "PENDING", className: "tag-old" };
     }
 
     function createQuestionCard(question) {
-        const displayTime = formatTimestamp(question.timestamp);
-        const tag = getQuestionTag(question); 
+        // Convert API timestamp to display format
+        const createdDate = new Date(question.created_at);
+        const displayTime = formatTimestampFromDate(createdDate);
+        
+        // Get tag based on question status
+        const tag = getQuestionTagFromAPI(question); 
         const dataId = question.id; 
+        
+        // Author display - show "Anonymous" if no author
+        const authorName = question.author ? question.author.display_name : "Anonymous";
         
         const votedClass = ''; 
         const iconSymbol = 'thumb_up'; 
         
-        let repliesHtml = '';
-        if (question.replies && question.replies.length > 0) {
-            repliesHtml = [...question.replies].reverse().map(createReplyHtml).join('');
-        }
-
+        // Note: Replies/voting will be implemented later - for now just show questions
         const replyInputHtml = `
             <div class="reply-input-wrapper" style="display: none;">
                 <input type="text" placeholder="Add a reply..." class="reply-input">
@@ -1011,27 +1042,25 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         
-        const repliesExist = question.replies.length > 0;
         const toggleState = 'false'; 
-        const arrowIcon = repliesExist ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
-        // Note: The toggle state starts closed. The replies container needs the 'open' class only if the user clicks it.
+        const arrowIcon = 'keyboard_arrow_down';
 
         return `
             <div class="question-card" data-id="${dataId}">
               <div class="card-header">
                 <div class="author-row">
-                  <span class="author-name">${question.author}</span>
+                  <span class="author-name">${escapeHtml(authorName)}</span>
                   <span class="tag ${tag.className}">${tag.text}</span>
                 </div>
                 <div class="vote-action ${votedClass}">
                   <span class="material-symbols-outlined vote-icon">${iconSymbol}</span>
-                  <span class="count">${question.votes}</span>
+                  <span class="count">${question.likes}</span>
                 </div>
               </div>
               <div class="timestamp">${displayTime}</div>
               
               <div class="question-bubble">
-                ${question.text}
+                ${escapeHtml(question.body)}
               </div>
               
               <div class="card-footer">
@@ -1039,12 +1068,11 @@ document.addEventListener('DOMContentLoaded', () => {
                   <span class="reply-action action-link"><span class="material-symbols-outlined icon-sm">reply</span> Reply</span>
                 </div>
                 <div class="footer-right replies-toggle" data-replies-open="${toggleState}">
-                  <span class="action-link">Show Reply (${question.replies.length}) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span></span>
+                  <span class="action-link">Show Reply (0) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span></span>
                 </div>
               </div>
               ${replyInputHtml}
               <div class="replies-container">
-                  ${repliesHtml}
               </div>
             </div>
         `;
