@@ -230,3 +230,43 @@ async function getSessionQuestions(code, status = null) {
   
   return await response.json();
 }
+
+/**
+ * Submit a question to a session.
+ * 
+ * @param {string} code - The 6-character session join code
+ * @param {number} userId - The user ID of the question author
+ * @param {string} body - The question text
+ * @returns {Promise<Object>} Created question object
+ * @throws {Error} If the request fails or returns non-2xx status
+ * 
+ * @example
+ * const question = await submitQuestion('ABC123', 42, 'What is the deadline?');
+ */
+async function submitQuestion(code, userId, body) {
+  const response = await fetch(`${API_BASE_URL}/sessions/${code}/questions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Id': userId.toString()
+    },
+    body: JSON.stringify({ body })
+  });
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    let message = `HTTP ${response.status}`;
+    
+    if (errorData.detail) {
+      if (Array.isArray(errorData.detail)) {
+        message = errorData.detail[0]?.msg || JSON.stringify(errorData.detail);
+      } else {
+        message = errorData.detail;
+      }
+    }
+    
+    throw new Error(message);
+  }
+  
+  return await response.json();
+}
