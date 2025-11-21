@@ -37,8 +37,7 @@ body {
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
-  overflow: hidden;
-
+  overflow-y: auto;
 }
 
 .container {
@@ -46,9 +45,9 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center; /* Center horizontally */
-    justify-content: center; 
-    min-height: 100vh;
+    justify-content: flex-start;
     width: 100%;
+    min-height: 100vh;
 }
 
 
@@ -202,6 +201,87 @@ pre {
   margin-top: 0.25rem;
   color: #64748b;
   font-size: 0.875rem;
+}
+
+/* Form section styling for start/join pages */
+section {
+  background-color: #FFFFFF;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  padding: 1.25rem;
+  margin: 0.5rem auto;
+  max-width: 500px;
+  width: 90%;
+}
+
+section h1 {
+  color: #1e293b;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.75rem;
+}
+
+section button[type="submit"] {
+  width: 100%;
+  padding: 12px 40px;
+  font-size: 1.1em;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  background-color: #1372BA;
+  color: #FFFFFF;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  margin-top: 1rem;
+}
+
+section button[type="submit"]:hover {
+  background-color: #0d5a91;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(19, 114, 186, 0.3);
+}
+
+section button[type="submit"]:disabled {
+  background-color: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Form actions container for button layout */
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  justify-content: space-between;
+}
+
+.back-button {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.back-button:hover {
+  background-color: #cbd5e1;
+}
+
+section button:first-child {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  padding: 8px 16px;
+  font-size: 0.9em;
+  width: auto;
+  margin-bottom: 1rem;
+}
+
+section button:first-child:hover {
+  background-color: #cbd5e1;
 }
 
 /* ============================================================
@@ -534,7 +614,7 @@ a.button:hover {
 .index-logo {
   display: flex;
   align-items: center;
-  margin-top: 150px;
+  margin-top: 30px;
   margin-bottom: 20px;
 }
 
@@ -571,6 +651,20 @@ a.button:hover {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
+/* Compact logo size for start/join pages */
+.compact-logo .jcu-main-logo {
+  width: 75px;
+}
+
+.compact-logo .learnjcu-heading {
+  font-size: 1.25em;
+}
+
+/* Reduce footer logo size on compact pages */
+.compact-logo ~ section ~ footer .jcu-footer-logo {
+  width: 110px;
+}
+
 footer {
     margin-bottom: 20px;
     display: flex; /* Ensure centering works */
@@ -580,10 +674,13 @@ footer {
 }
 
 .jcu-footer-logo {
-    position: absolute; /* Take it out of flow */
-    bottom: 20px; /* Pin it to the bottom */
     width: 200px;
     text-align: center;
+    margin-top: auto;
+}
+
+.jcu-footer-logo.compact-logo {
+    width: 140px;
 }
 
 .material-symbols-outlined {
@@ -811,6 +908,13 @@ header {
 
 .lecturer-name {
   font-size: 0.9em;
+}
+
+.session-code {
+  font-size: 0.9em;
+  margin-top: 0.5rem;
+  color: #1372BA;
+  font-weight: 500;
 }
 
 .student-count {
