@@ -359,7 +359,7 @@ function renderError(element, message) {
  * @param {Object} session - Created session object from API
  */
 function renderCreateSuccess(element, session) {
-  const sessionUrl = `/static/class-discussion-host.html?code=${escapeHtml(session.code)}`;
+  const sessionUrl = `/static/class-discussion-student.html?code=${escapeHtml(session.code)}`;
   
   element.innerHTML = `
     <div class="success-message">
