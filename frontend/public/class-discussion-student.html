@@ -30,6 +30,7 @@
             <div class="session-header-info">
                 <div class="session-name">Session Name</div> <!--TO DO: create JS variable-->
                 <div class="lecturer-name">Lecturer name</div> <!--TO DO: create JS variable-->
+                <div class="session-code">Code: <strong id="session-code-display">--</strong></div>
             </div>
 
             <div class="student-count">
@@ -72,11 +73,23 @@
             <script src="/static/js/components.js"></script>
             <script src="/static/js/api.js"></script>
             <script src="/static/js/ui.js"></script>
+            
+            <script>
+              // Display session code from URL query parameter
+              const urlParams = new URLSearchParams(window.location.search);
+              const sessionCode = urlParams.get('code');
+              if (sessionCode) {
+                const codeDisplay = document.getElementById('session-code-display');
+                if (codeDisplay) {
+                  codeDisplay.textContent = sessionCode.toUpperCase();
+                }
+              }
+            </script>
 
         </div>
 
         <footer>
-            <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
+            <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo compact-logo">
         </footer>
 
 
