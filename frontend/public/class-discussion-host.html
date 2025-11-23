@@ -28,13 +28,13 @@
             </div>
 
             <div class="session-header-info">
-                <div class="session-name">Session Name</div> <!--TO DO: create JS variable-->
-                <div class="lecturer-name">Lecturer name</div> <!--TO DO: create JS variable-->
+                <div class="session-name" id="session-title-display">Loading...</div>
+                <div class="lecturer-name" id="host-name-display">Loading...</div>
             </div>
 
             <div class="student-count">
                 <span class="material-symbols-outlined students">group</span>
-                <span>N Students Online<span> <!--TO DO: create JS variable-->
+                <span id="student-count-display">0 Students Online</span>
             </div>
 
         </header>
@@ -43,77 +43,72 @@
 
             <div class="main-layout-wrapper">
 
-                <div class="main-content-card">
-
+                <div class="discussion-feed-area">
                     <div class="discussion-list">
-
                         <div class="empty-feed">
                             <span class="material-symbols-outlined large-icon">chat</span>
                             <p><strong>Be the first to ask a question!</strong></p>
                             <p>Your questions will appear here once you hit "Post."</p>
                         </div>
-
                     </div>
 
-                    <div class="lecturer-sidebar">
+                    <div class="input-area">
+                        <input type="text" placeholder="Type question here">
+                        <button class="post-button">Post</button>
 
-                        <hr class="sidebar-divider">
+                        <div class="toggle-wrapper">
+                            <label class="switch">
+                                <input type="checkbox">
+                                <span class="slider round"></span>
+                            </label>
+                            <span class="anon-label">Ask Anonymously</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lecturer-sidebar-wrapper">
+                    <div class="sidebar-content-area">
+
+                        <div class="sidebar-stats-controls">
+                            <div class="stat-item new-questions">
+                                <span class="stat-count" id="new-questions-count">0</span> Question(s)
+                            </div>
+                            <hr class="sidebar-divider">
+                        </div>
+
 
                         <div class="sidebar-participation">
-                            <h2>Participation</h2>
-                            <div class="sidebar-stats">
-                                <div class="stat-item new-questions">
-                                    <span class="stat-count">[N]</span> New Question
-                                </div>
-
-                                <div class="stat-item unanswered-questions">
-                                    <span class="stat-count">[N]</span> Unanswered Questions
-                                </div>
-                            </div>
-
-
-                            <div class="participant-list-container">
-                                <div class="participant-card lecturer">
-                                    <div class="user-info">
-                                        <span class="user-name">[Lecturer Name (Creator)]</span>
-                                        <span class="tag tag-educator">EDUCATOR</span>
-                                    </div>
-                                    <div class="post-info">
-                                        No Responses | No Replies
-                                    </div>
-                                </div>
-                                <div class="participant-card">
-                                    <div class="user-info">
-                                        <span class="user-name">[Participant Name]</span>
-                                    </div>
-                                    <div class="post-info">
-                                        No Responses | No Replies
-                                    </div>
-                                </div>
+                            <h2>Participants</h2>
+                            <div class="participant-list-container" id="participant-list-container">
+                                <!-- Participants will be loaded dynamically -->
                             </div>
                         </div>
 
-                        <button class="end-session-button">End Session</button>
-
                     </div>
 
+                    <button class="end-session-button">End Session</button>
 
-                    <!-- Load scripts in dependency order: utils → components → api → ui -->
-                    <script src="/static/js/utils.js"></script>
-                    <script src="/static/js/components.js"></script>
-                    <script src="/static/js/api.js"></script>
-                    <script src="/static/js/ui.js"></script>
 
                 </div>
 
-                <footer>
-                    <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
-                </footer>
-
 
             </div>
+            
+            <!-- Load scripts in dependency order: utils → components → api → ui -->
+            <script src="/static/js/utils.js"></script>
+            <script src="/static/js/components.js"></script>
+            <script src="/static/js/api.js"></script>
+            <script src="/static/js/ui.js"></script>
+
         </div>
+
+        <footer>
+            <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
+        </footer>
+
+
     </div>
+
 
 </body>
 

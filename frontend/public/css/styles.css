@@ -43,8 +43,7 @@ body {
 
 }
 
-/* Central wrapper for landing page elements (logo + buttons) */
-.container {
+.index-container {
     /* Ensures the logo/buttons are centered horizontally and spaced vertically */
     display: flex;
     flex-direction: column;
@@ -54,7 +53,13 @@ body {
     width: 100%;
 }
 
-
+.container {
+    /* Ensures the logo/buttons are centered horizontally and spaced vertically */
+    flex-direction: column;
+    align-items: center; /* Center horizontally */
+    min-height: 100vh;
+    width: 100%;
+}
 
 /* ============================================================
    Typography
@@ -1211,4 +1216,220 @@ header {
     font-size: 0.95rem;
     line-height: 1.4;
     color: #444;
+}
+
+/* --- LECTURER LAYOUT OVERHAUL --- */
+
+.app-container {
+    flex-direction: column;
+    align-items: center; /* Center horizontally */
+    min-height: 100vh;
+    width: 100%;
+}
+
+.main-layout-wrapper {
+    /* Main wrapper holds both columns */
+    display: flex;
+    gap: 20px;
+    width: 90%;
+    margin: 2rem auto; 
+    height: calc(100vh - 250px);
+    flex-grow: 1;
+}
+
+.discussion-feed-area {
+    /* This now wraps the discussion list, input area (if present), and contains the white background/shadow */
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allows it to take up available space */
+    min-width: 600px;
+    overflow: hidden; /* Contains scrollbar */
+}
+
+.lecturer-sidebar-wrapper {
+    /* Defines the sidebar container */
+    background-color: #fff; /* White background for stats/list area */
+    width: 300px; /* Fixed width */
+    min-height: 100%;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* Essential for sticky footer */
+}
+
+.sidebar-content-area {
+    flex-grow: 1;
+    overflow-y: auto; /* Allows participation list to scroll */
+}
+
+.sidebar-stats-controls {
+    padding: 20px 20px 10px;
+}
+
+.stat-item {
+    font-size: 1.1rem; /* Larger text for primary stats */
+    padding: 5px 0;
+    font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+}
+
+.stat-item .stat-count {
+    font-weight: 700;
+}
+
+.unanswered-questions {
+    color: #cc0000; /* Red color */
+}
+
+.poll-quiz-controls {
+    display: flex;
+    gap: 10px;
+    padding: 25px 0 25px;
+}
+
+.sidebar-button {
+    /* Styles for Start Poll/Create Quiz buttons */
+    background-color: #1372BA;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 10px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    flex-grow: 1;
+    transition: background-color 0.2s;
+}
+
+.sidebar-button:hover {
+    background-color: #0d5a9c;
+}
+
+.sidebar-divider {
+    border: none;
+    border-top: 1px solid #000000;
+    margin: 0 10px;
+}
+
+/* --- PARTICIPATION LIST --- */
+
+.sidebar-participation {
+    padding: 15px 20px;
+}
+
+.sidebar-participation h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: 5px;
+}
+
+.participant-list-container {
+    padding-top: 10px;
+}
+
+/* Style for individual names */
+.participant-name-item {
+    font-size: 0.95rem;
+    padding: 3px 0;
+    font-weight: 500;
+    color: #000;
+}
+
+/* --- END SESSION BUTTON (STICKY) --- */
+
+.end-session-button {
+    /* Black background, pushed to the bottom of the sidebar wrapper */
+    background-color: #000;
+    color: white;
+    padding: 15px 20px;
+    width: 100%;
+    border: none;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: auto; 
+    border-radius: 0 0 12px 12px; 
+    transition: background-color 0.2s;
+}
+
+.end-session-button:hover {
+    background-color: #c00;
+}
+
+
+/* New: Style for the modal section wrapper */
+.index-container section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    /* No margin top needed here as index-logo handles spacing */
+}
+
+/* --- FORM MODAL CONTAINER (#dynamic-forms) --- */
+#dynamic-forms, 
+#dynamic-forms > div { /* Target the injected form and its wrapper */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    /* Key styles for the modal look: */
+    background-color: #FFFFFF;
+    padding: 30px 40px;
+    border-radius: 15px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+    width: 90%;
+    max-width: 500px; /* Constrain the width to make it a small modal */
+}
+
+/* ============================================================
+   Form Components
+   ============================================================ */
+
+/* New: Hide labels for a clean, placeholder-only modal */
+#dynamic-forms label {
+    display: none !important; 
+}
+
+/* Fix the Input Field: Needs thick white background and defined size */
+.form-group input {
+    width: 100%;
+    padding: 12px 10px; /* Increased vertical padding */
+    border: 3px solid #ccc; /* Thicker light gray border */
+    border-radius: 8px; /* Slightly more rounded */
+    font-size: 1.1rem;
+    /* Ensure only the code input shows in the Join view */
+}
+
+/* Remove margin from form groups so elements stack cleanly */
+#dynamic-forms .form-group {
+    margin-bottom: 15px;
+    width: 100%;
+}
+
+/* --- Submit Button (e.g., "Join Session") --- */
+#dynamic-forms button[type="submit"], 
+#dynamic-forms #create-button, 
+#dynamic-forms #join-button {
+    /* Style for the large, black, primary button (like "Join" in the image) */
+    width: 100%;
+    padding: 10px 0;
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: white;
+    background-color: #000; /* Black background */
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background-color 0.2s;
+}
+
+#dynamic-forms button[type="submit"]:hover {
+    background-color: #333;
 }
