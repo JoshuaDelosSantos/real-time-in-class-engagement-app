@@ -28,7 +28,7 @@ function renderDynamicForms() {
     console.warn('Dynamic forms container not found');
     return;
   }
-  
+
   // Create Session Form
   const createSessionHTML = createFormSection({
     id: 'create-form',
@@ -49,12 +49,12 @@ function renderDynamicForms() {
         helperText: 'This is how you\'ll appear as the session host (1-100 characters)'
       }
     ],
-    submitButtonText: 'Create Session',
+    submitButtonText: 'Start',
     submitButtonId: 'create-button',
     outputId: 'create-output',
-    outputInitialText: 'Fill out the form above to create a new session'
+    outputInitialText: ' '
   });
-  
+
   // Join Session Form (refactored from hardcoded HTML)
   const joinSessionHTML = createFormSection({
     id: 'join-form',
@@ -85,7 +85,7 @@ function renderDynamicForms() {
     outputId: 'join-output',
     outputInitialText: 'Enter a session code and your name to join'
   });
-  
+
 
   // Only show the correct form depending on page
   const path = window.location.pathname;
@@ -103,8 +103,8 @@ function renderDynamicForms() {
 }
 
 
-  // Inject both forms
-  // container.innerHTML = createSessionHTML + joinSessionHTML;
+// Inject both forms
+// container.innerHTML = createSessionHTML + joinSessionHTML;
 // }
 
 /**
@@ -113,12 +113,12 @@ function renderDynamicForms() {
 function setupHealthCheck() {
   const button = document.getElementById('ping');
   const output = document.getElementById('output');
-  
+
   button.addEventListener('click', async () => {
     // Show loading state
     output.textContent = 'Checking…';
     button.disabled = true;
-    
+
     try {
       const data = await checkHealth();
       renderHealthStatus(output, data);
@@ -136,12 +136,12 @@ function setupHealthCheck() {
 function setupSessionsFetch() {
   const button = document.getElementById('fetch-sessions');
   const output = document.getElementById('sessions-output');
-  
+
   button.addEventListener('click', async () => {
     // Show loading state
     showLoading(output);
     button.disabled = true;
-    
+
     try {
       const sessions = await fetchSessions();
       renderSessions(output, sessions);
@@ -162,71 +162,74 @@ function setupCreateSession() {
   const hostNameInput = document.getElementById('host-name');
   const submitButton = document.getElementById('create-button');
   const output = document.getElementById('create-output');
-  
+
   // DOM guards
   if (!form || !titleInput || !hostNameInput || !submitButton || !output) {
     console.warn('Create session form elements not found, skipping setup');
     return;
   }
-  
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    
+
     const title = titleInput.value.trim();
     const hostName = hostNameInput.value.trim();
-    
+
     // Validation
     if (!title || title.length < 1) {
       renderError(output, 'Please enter a session title');
       return;
     }
-    
+
     if (title.length > 200) {
       renderError(output, 'Session title must be 200 characters or less');
       return;
     }
-    
+
     if (!hostName || hostName.length < 1) {
       renderError(output, 'Please enter your name as host');
       return;
     }
-    
+
     if (hostName.length > 100) {
       renderError(output, 'Host name must be 100 characters or less');
       return;
     }
-    
+
     // Disable during request
     submitButton.disabled = true;
     titleInput.disabled = true;
     hostNameInput.disabled = true;
     showLoading(output, 'Creating session…');
-    
+
     try {
       const session = await createSession({
         title: title,
         host_display_name: hostName
       });
+
+      // Fetch participants to get the host's user ID
+      const participants = await getSessionParticipants(session.code);
+      const hostParticipant = participants.find(p => p.role === 'host');
       
-      // Store created session info with user ID
+      if (hostParticipant && hostParticipant.user) {
+        sessionStorage.setItem('userId', hostParticipant.user.id.toString());
+        sessionStorage.setItem('displayName', hostParticipant.user.display_name);
+      }
+
+      // Store created session info
       sessionStorage.setItem('createdSession', JSON.stringify({
         code: session.code,
         title: session.title,
         hostName: hostName,
-        userId: session.host.id,
         createdAt: new Date().toISOString()
       }));
       
-      // Store current session with user info
-      sessionStorage.setItem('currentSession', JSON.stringify({
-        code: session.code,
-        userId: session.host.id,
-        displayName: hostName
-      }));
-      
+      sessionStorage.setItem('sessionCode', session.code);
+
       renderCreateSuccess(output, session);
       form.reset();
-      
+
     } catch (error) {
       renderCreateError(output, error.message);
     } finally {
@@ -246,72 +249,67 @@ function setupJoinSession() {
   const nameInput = document.getElementById('display-name');
   const submitButton = document.getElementById('join-button');
   const output = document.getElementById('join-output');
-  
+
   // DOM guards
   if (!form || !codeInput || !nameInput || !submitButton || !output) {
     console.warn('Join session form elements not found, skipping setup');
     return;
   }
-  
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    
+
     const code = codeInput.value.trim().toUpperCase();
     const displayName = nameInput.value.trim();
-    
+
     // Validation
     if (!code || code.length !== 6) {
       renderError(output, 'Please enter a valid 6-character session code');
       return;
     }
-    
+
     if (!displayName || displayName.length < 1) {
       renderError(output, 'Please enter your display name');
       return;
     }
-    
+
     if (displayName.length > 100) {
       renderError(output, 'Display name must be 100 characters or less');
       return;
     }
-    
+
     // Disable during request
     submitButton.disabled = true;
     codeInput.disabled = true;
     nameInput.disabled = true;
     showLoading(output, 'Joining session…');
-    
+
     try {
       const session = await joinSession(code, displayName);
-      
-      // Get participants to find the user's ID - find most recent participant with matching name
-      const participants = await getSessionParticipants(code);
-      // Sort by joined_at descending to get the most recent join
-      const sortedParticipants = participants.sort((a, b) => {
-        const dateA = new Date(a.joined_at || 0);
-        const dateB = new Date(b.joined_at || 0);
-        return dateB - dateA;
-      });
-      // Find the first matching user (most recent join with this display name)
-      const currentUser = sortedParticipants.find(p => 
-        p.user.display_name.trim() === displayName.trim()
+
+      // Fetch participants to get the user's ID
+      const participants = await getSessionParticipants(session.code);
+      const userParticipant = participants.find(p => 
+        p.user && p.user.display_name.toLowerCase().trim() === displayName.toLowerCase().trim()
       );
       
-      if (!currentUser) {
-        console.error('Could not find user in participants list', { displayName, participants });
+      if (userParticipant && userParticipant.user) {
+        sessionStorage.setItem('userId', userParticipant.user.id.toString());
+        sessionStorage.setItem('displayName', userParticipant.user.display_name);
       }
-      
-      // Store session info with user ID
+
+      // Store session info
       sessionStorage.setItem('currentSession', JSON.stringify({
         code: session.code,
         displayName: displayName,
-        userId: currentUser ? currentUser.user.id : null,
         joinedAt: new Date().toISOString()
       }));
       
+      sessionStorage.setItem('sessionCode', session.code);
+
       renderJoinSuccess(output, session, displayName);
       form.reset();
-      
+
     } catch (error) {
       renderJoinError(output, error.message);
     } finally {
@@ -343,7 +341,7 @@ function renderSessions(element, sessions) {
     element.innerHTML = '<div class="empty-message">No sessions available</div>';
     return;
   }
-  
+
   const sessionCards = sessions.map(session => `
     <div class="session-card">
       <div class="session-title">${escapeHtml(session.title)}</div>
@@ -354,7 +352,7 @@ function renderSessions(element, sessions) {
       </div>
     </div>
   `).join('');
-  
+
   element.innerHTML = `<div class="session-list">${sessionCards}</div>`;
 }
 
@@ -386,7 +384,7 @@ function renderError(element, message) {
  */
 function renderCreateSuccess(element, session) {
   const sessionUrl = `/static/class-discussion-host.html?code=${escapeHtml(session.code)}`;
-  
+
   element.innerHTML = `
     <div class="success-message">
       <h3>✓ Session Created!</h3>
@@ -406,18 +404,21 @@ function renderCreateSuccess(element, session) {
       </div>
     </div>
   `;
-  
+
+  // Store session in sessionStorage
+  sessionStorage.setItem('currentSession', JSON.stringify(session));
+
   // Auto-redirect with countdown (use setTimeout to ensure DOM is updated)
   setTimeout(() => {
     let countdown = 2;
     const countdownElement = element.querySelector('#redirect-countdown');
-    
+
     if (!countdownElement) {
       console.warn('Countdown element not found, redirecting immediately');
       window.location.href = sessionUrl;
       return;
     }
-    
+
     const countdownInterval = setInterval(() => {
       countdown--;
       if (countdownElement) {
@@ -428,7 +429,7 @@ function renderCreateSuccess(element, session) {
         }
       }
     }, 1000);
-    
+
     setTimeout(() => {
       clearInterval(countdownInterval);
       console.log('Redirecting to session page (create):', sessionUrl);
@@ -447,9 +448,9 @@ function renderCreateError(element, errorMessage) {
   const friendlyMessages = {
     'Host has reached maximum active sessions limit (3)': 'You\'ve reached the maximum of 3 active sessions. Please end an existing session before creating a new one.',
   };
-  
+
   const displayMessage = friendlyMessages[errorMessage] || errorMessage;
-  
+
   element.innerHTML = `
     <div class="error-message">
       <p><strong>Unable to create session</strong></p>
@@ -467,7 +468,7 @@ function renderCreateError(element, errorMessage) {
  */
 function renderJoinSuccess(element, session, displayName) {
   const sessionUrl = `/static/class-discussion-student.html?code=${escapeHtml(session.code)}`;
-  
+
   element.innerHTML = `
     <div class="success-message">
       <h3>✓ Successfully joined!</h3>
@@ -484,21 +485,21 @@ function renderJoinSuccess(element, session, displayName) {
       </p>
     </div>
   `;
-  
+
   // Store session in sessionStorage
   sessionStorage.setItem('currentSession', JSON.stringify(session));
-  
+
   // Auto-redirect with countdown (use setTimeout to ensure DOM is updated)
   setTimeout(() => {
     let countdown = 2;
     const countdownElement = element.querySelector('#redirect-countdown');
-    
+
     if (!countdownElement) {
       console.warn('Countdown element not found, redirecting immediately');
       window.location.href = sessionUrl;
       return;
     }
-    
+
     const countdownInterval = setInterval(() => {
       countdown--;
       if (countdownElement) {
@@ -509,7 +510,7 @@ function renderJoinSuccess(element, session, displayName) {
         }
       }
     }, 1000);
-    
+
     setTimeout(() => {
       clearInterval(countdownInterval);
       console.log('Redirecting to session page (join):', sessionUrl);
@@ -530,9 +531,9 @@ function renderJoinError(element, errorMessage) {
     'Session has ended and is no longer joinable': 'This session has ended and is no longer accepting participants.',
     'Display name is required': 'Please enter a display name (cannot be only spaces).',
   };
-  
+
   const displayMessage = friendlyMessages[errorMessage] || errorMessage;
-  
+
   element.innerHTML = `
     <div class="error-message">
       <p><strong>Unable to join session</strong></p>
@@ -547,12 +548,12 @@ function renderJoinError(element, errorMessage) {
 function checkActiveSession() {
   const sessionSection = document.getElementById('active-session-section');
   const sessionInfo = document.getElementById('active-session-info');
-  
+
   if (!sessionSection || !sessionInfo) return;
-  
+
   const sessionData = sessionStorage.getItem('currentSession');
   if (!sessionData) return;
-  
+
   try {
     const session = JSON.parse(sessionData);
     sessionSection.style.display = 'block';
@@ -576,491 +577,368 @@ if (document.readyState === 'loading') {
   initializeApp();
 }
 
-// Initialize class discussion pages (host and student)
-if (window.location.pathname.includes('class-discussion')) {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeClassDiscussion);
-  } else {
-    initializeClassDiscussion();
-  }
-}
-
-/**
- * Initialize class discussion page - loads session data and sets up UI
- */
-async function initializeClassDiscussion() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const sessionCode = urlParams.get('code');
+// New
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. DOM Elements and Constants
+  const postButton = document.querySelector('.post-button');
+  const sessionTitleDisplay = document.getElementById('session-title-display');
+  const hostNameDisplay = document.getElementById('host-name-display');
+  const studentCountDisplay = document.getElementById('student-count-display');
+  const participantListContainer = document.getElementById('participant-list');
   
-  if (!sessionCode) {
-    console.error('No session code provided');
+  const questionInput = document.querySelector('.input-area input[type="text"]');
+  const discussionList = document.querySelector('.discussion-list');
+
+  // Cloning the template for the empty state message
+  const emptyFeedTemplate = document.querySelector('.empty-feed');
+  const emptyFeed = emptyFeedTemplate ? emptyFeedTemplate.cloneNode(true) : null;
+  const anonToggle = document.querySelector('.switch input[type="checkbox"]');
+
+  const STORAGE_KEY = 'jcu_interactive_questions';
+  const knownUserName = "Current User Name";
+  const NEW_QUESTION_CUTOFF_MS = 5 * 60 * 1000;
+
+  // Critical Check: If the core elements are missing, stop execution silently.
+  if (!postButton || !questionInput || !discussionList) {
     return;
   }
-  
-  try {
-    // Load session data and populate header
-    const session = await getSessionDetails(sessionCode);
-    const participants = await getSessionParticipants(sessionCode);
-    updateSessionHeader(session, participants);
-    
-    // If on host page, populate the lecturer participant card
-    if (window.location.pathname.includes('class-discussion-host')) {
-      populateLecturerCard(session);
+
+  // =======================================================
+  // --- FUNCTION DEFINITIONS ---
+  // =======================================================
+
+  /* Sets up click listeners for the Lecturer Sidebar buttons (Poll/Quiz).*/
+  /* Sets up click listeners for the Lecturer Sidebar buttons (Poll/Quiz).*/
+  function setupSidebarListeners() {
+    // CRITICAL FIX: Use compound selectors to accurately find the elements.
+    const pollButton = document.querySelector('.poll-quiz-controls .start-poll-button');
+    const quizButton = document.querySelector('.poll-quiz-controls .create-quiz-button');
+    const endSessionButton = document.querySelector('.end-session-button');
+
+    // Check if we are on the lecturer page (i.e., buttons exist)
+    if (pollButton && quizButton) {
+
+      // Start Poll Button
+      pollButton.addEventListener('click', () => {
+        alert("Feature coming soon: Start Poll...");
+      });
+
+      // Create Quiz Button
+      quizButton.addEventListener('click', () => {
+        alert("Feature coming soon: Create Quiz...");
+      });
     }
-    
-    // Start polling for participant count updates
-    startParticipantCountPolling(sessionCode);
-    
-  } catch (error) {
-    console.error('Failed to load session data:', error);
-  }
-}
 
-/**
- * Update session header with real data
- */
-function updateSessionHeader(session, participants) {
-  const sessionNameEl = document.querySelector('.session-name');
-  const lecturerNameEl = document.querySelector('.lecturer-name');
-  const studentCountEl = document.querySelector('.student-count span:last-child');
-  
-  if (sessionNameEl) {
-    sessionNameEl.textContent = `Session: ${session.title}`;
+    // End Session Button 
+    if (endSessionButton) {
+      endSessionButton.addEventListener('click', () => {
+        const confirmed = confirm("Are you sure you want to end the session?");
+        if (confirmed) {
+          alert("Session ended. (Placeholder: Redirect to index page)");
+        }
+      });
+    }
   }
-  
-  if (lecturerNameEl) {
-    lecturerNameEl.textContent = `Host: ${session.host.display_name}`;
-  }
-  
-  if (studentCountEl && participants) {
-    // Count participants excluding the host (role !== 'host')
-    const studentCount = participants.filter(p => p.role !== 'host').length;
-    studentCountEl.textContent = `${studentCount} Student${studentCount !== 1 ? 's' : ''} Online`;
-  }
-}
 
-/**
- * Start polling for participant count updates
- */
-let participantPollInterval = null;
+  // --- All other core functions (handlePostQuestion, handleVote, etc.) follow here ---
 
-function startParticipantCountPolling(sessionCode) {
-  // Clear any existing interval
-  if (participantPollInterval) {
-    clearInterval(participantPollInterval);
+  // The following function definitions must be defined before they are called.
+  // I will include them here for completeness:
+
+  function handlePostQuestion() {
+    const questionText = questionInput.value.trim();
+
+    if (questionText) {
+      const isAnonymous = anonToggle.checked;
+      const author = isAnonymous ? "Anonymous" : knownUserName;
+
+      const newQuestion = {
+        id: Date.now() + Math.random(),
+        author: author,
+        text: questionText,
+        timestamp: Date.now(),
+        isAnswered: false,
+        votes: 0,
+        replies: []
+      };
+
+      const questions = getStoredQuestions();
+      questions.unshift(newQuestion);
+      saveQuestions(questions);
+
+      renderQuestions(questions);
+
+      questionInput.value = '';
+      anonToggle.checked = false;
+    } else {
+      questionInput.placeholder = "Please type your question here!";
+      questionInput.focus();
+    }
   }
-  
-  // Poll every 5 seconds
-  participantPollInterval = setInterval(async () => {
+
+  function handleVote(e, voteActionElement) {
+    e.preventDefault();
+
+    const questionCard = voteActionElement.closest('.question-card');
+    const questionId = parseFloat(questionCard.getAttribute('data-id'));
+
+    let questions = getStoredQuestions();
+    const qIndex = questions.findIndex(q => q.id === questionId);
+
+    if (qIndex === -1) return;
+
+    let question = questions[qIndex];
+    const countSpan = voteActionElement.querySelector('.count');
+
+    if (!countSpan) return;
+
+    const hasVoted = voteActionElement.classList.contains('voted');
+
+    if (hasVoted) {
+      question.votes -= 1;
+      voteActionElement.classList.remove('voted');
+
+    } else {
+      question.votes += 1;
+      voteActionElement.classList.add('voted');
+    }
+
+    countSpan.textContent = question.votes;
+    saveQuestions(questions);
+  }
+
+  function handleReplyToggle(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const card = e.target.closest('.question-card');
+    if (card) {
+      const inputWrapper = card.querySelector('.reply-input-wrapper');
+      if (inputWrapper) {
+        const isHidden = inputWrapper.style.display === 'none' || inputWrapper.style.display === '';
+        inputWrapper.style.display = isHidden ? 'flex' : 'none';
+
+        if (isHidden) {
+          inputWrapper.querySelector('input').focus();
+        }
+      }
+    }
+  }
+
+  function handlePostReply(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const questionCard = e.target.closest('.question-card');
+    if (!questionCard) return;
+
+    const questionId = parseFloat(questionCard.getAttribute('data-id'));
+
+    const inputWrapper = e.target.closest('.reply-input-wrapper');
+    const replyInput = inputWrapper.querySelector('.reply-input');
+    const repliesContainer = questionCard.querySelector('.replies-container');
+    const replyText = replyInput.value.trim();
+
+    if (replyText && repliesContainer) {
+
+      const newReply = {
+        author: knownUserName,
+        text: replyText,
+        timestamp: Date.now(),
+        isApproved: false,
+      };
+
+      let questions = getStoredQuestions();
+      const qIndex = questions.findIndex(q => q.id === questionId);
+
+      if (qIndex !== -1) {
+        questions[qIndex].replies.unshift(newReply);
+        saveQuestions(questions);
+
+        const newReplyHtml = createReplyHtml(newReply);
+        repliesContainer.insertAdjacentHTML('afterbegin', newReplyHtml);
+
+        const currentCount = questions[qIndex].replies.length;
+        updateReplyCount(questionCard, currentCount);
+
+        inputWrapper.style.display = 'none';
+        replyInput.value = '';
+      }
+    }
+  }
+
+  function handleRepliesToggle(e) {
+    const toggleElement = e.target.closest('.replies-toggle');
+    if (!toggleElement) return;
+
+    const card = toggleElement.closest('.question-card');
+    const repliesContainer = card.querySelector('.replies-container');
+
+    const questionId = parseFloat(card.getAttribute('data-id'));
+    const questions = getStoredQuestions();
+    const question = questions.find(q => q.id === questionId);
+
+    if (!question || question.replies.length === 0) return;
+
+    const isOpen = repliesContainer.classList.contains('open');
+
+    if (isOpen) {
+      repliesContainer.classList.remove('open');
+      toggleElement.setAttribute('data-replies-open', 'false');
+    } else {
+      repliesContainer.classList.add('open');
+      toggleElement.setAttribute('data-replies-open', 'true');
+    }
+  }
+
+  function renderQuestions(questions) {
+    discussionList.innerHTML = '';
+
+    if (questions.length === 0) {
+      if (emptyFeed) {
+        discussionList.appendChild(emptyFeed);
+        emptyFeed.style.display = 'flex';
+      }
+    } else {
+      questions.forEach(question => {
+        const cardHTML = createQuestionCard(question);
+        discussionList.insertAdjacentHTML('beforeend', cardHTML);
+      });
+    }
+  }
+
+  // --- All other helper functions (getStoredQuestions, saveQuestions, etc.) would be defined here ---
+
+  function getStoredQuestions() {
+    const stored = localStorage.getItem(STORAGE_KEY);
     try {
-      const session = await getSessionDetails(sessionCode);
-      const participants = await getSessionParticipants(sessionCode);
-      updateSessionHeader(session, participants);
-    } catch (error) {
-      console.error('Failed to update participant count:', error);
+      const questions = stored ? JSON.parse(stored) : [];
+      return questions.map(q => {
+        let id = parseFloat(q.id);
+        if (isNaN(id)) {
+          id = Date.now() + Math.random();
+        }
+        return {
+          ...q,
+          id: id,
+          replies: q.replies || []
+        };
+      });
+    } catch (e) {
+      console.error("Error parsing questions from Local Storage:", e);
+      return [];
     }
-  }, 5000);
-}
-
-// Clean up polling when page unloads
-window.addEventListener('beforeunload', () => {
-  if (participantPollInterval) {
-    clearInterval(participantPollInterval);
   }
-});
 
-/**
- * Populate the lecturer participant card with session creator's name
- */
-function populateLecturerCard(session) {
-  const lecturerCard = document.querySelector('.participant-card.lecturer .user-name');
-  
-  if (lecturerCard) {
-    lecturerCard.textContent = `${session.host.display_name} (Creator)`;
+  function saveQuestions(questions) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(questions));
   }
-}
 
-// Initialize question discussion functionality
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. DOM Elements and Constants
-    const postButton = document.querySelector('.post-button');
-    const questionInput = document.querySelector('.input-area input[type="text"]');
-    const discussionList = document.querySelector('.discussion-list');
-    
-    // Cloning the template for the empty state message
-    const emptyFeedTemplate = document.querySelector('.empty-feed');
-    const emptyFeed = emptyFeedTemplate ? emptyFeedTemplate.cloneNode(true) : null;
-    
-    const anonToggle = document.querySelector('.switch input[type="checkbox"]');
-    
-    // Get session code and user info from URL and sessionStorage
-    const urlParams = new URLSearchParams(window.location.search);
-    const currentSessionCode = urlParams.get('code');
-    const sessionData = sessionStorage.getItem('currentSession');
-    let currentUserId = null;
-    let currentUserName = null;
-    
-    if (sessionData) {
-        try {
-            const session = JSON.parse(sessionData);
-            // Check if this is user session data (has userId/displayName) or session summary
-            if (session.userId !== undefined) {
-                currentUserId = session.userId;
-                currentUserName = session.displayName;
-            } else if (session.host && session.host.display_name) {
-                // If it's session summary and user is the host
-                currentUserId = session.host.id;
-                currentUserName = session.host.display_name;
-            }
-            console.log('Loaded from sessionStorage - User ID:', currentUserId, 'Name:', currentUserName);
-        } catch (e) {
-            console.error('Failed to parse session data:', e);
-        }
-    }
-    
-    const NEW_QUESTION_CUTOFF_MS = 5 * 60 * 1000; 
-    let questionsPollInterval = null;
+  function loadQuestions() {
+    const questions = getStoredQuestions();
+    renderQuestions(questions);
+  }
 
-    // Critical Check: If the core elements are missing, stop execution silently.
-    if (!postButton || !questionInput || !discussionList) {
-        return;
+  function updateReplyCount(cardElement, count) {
+    const replyCountSpan = cardElement.querySelector('.card-footer .footer-right span:first-child');
+    if (replyCountSpan) {
+      const arrowIcon = count > 0 ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+      replyCountSpan.innerHTML = `Show Reply (${count}) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span>`;
     }
-    
-    // Critical Check: Need session code
-    if (!currentSessionCode) {
-        console.error('Missing session code');
-        return;
+  }
+
+  function isQuestionNew(timestamp) {
+    const ageMs = Date.now() - timestamp;
+    return ageMs < NEW_QUESTION_CUTOFF_MS;
+  }
+
+  function getQuestionTag(question) {
+    if (question.isAnswered) {
+      return { text: "ANSWERED", className: "tag-answered" };
     }
-    
-    // If user ID is missing, try to fetch it from participants
-    if (!currentUserId) {
-        console.warn('User ID not found in sessionStorage, will fetch from participants');
-        fetchUserIdFromParticipants().then(() => {
-            console.log('User ID fetched:', currentUserId);
-        }).catch(err => {
-            console.error('Failed to fetch user ID:', err);
-        });
+    if (isQuestionNew(question.timestamp)) {
+      return { text: "NEW", className: "tag-new" };
+    } else {
+      return { text: "OLD", className: "tag-old" };
     }
-    
-    async function fetchUserIdFromParticipants() {
-        try {
-            const participants = await getSessionParticipants(currentSessionCode);
-            console.log('Looking for user:', currentUserName, 'in participants:', participants);
-            
-            // If we don't have a username, we can't match - need to prompt user
-            if (!currentUserName) {
-                console.error('No username available to match against participants');
-                
-                // Try to identify user by asking them or using the most recent participant
-                // For now, let's use the most recent non-host participant
-                const sortedParticipants = participants
-                    .filter(p => p.role !== 'host')
-                    .sort((a, b) => {
-                        const dateA = new Date(a.joined_at || 0);
-                        const dateB = new Date(b.joined_at || 0);
-                        return dateB - dateA;
-                    });
-                
-                if (sortedParticipants.length > 0) {
-                    const recentUser = sortedParticipants[0];
-                    currentUserId = recentUser.user.id;
-                    currentUserName = recentUser.user.display_name;
-                    console.log('Using most recent participant:', currentUserName, currentUserId);
-                    
-                    // Update sessionStorage
-                    sessionStorage.setItem('currentSession', JSON.stringify({
-                        code: currentSessionCode,
-                        userId: currentUserId,
-                        displayName: currentUserName
-                    }));
-                    return;
-                }
-            }
-            
-            // Sort by joined_at descending to get the most recent join
-            const sortedParticipants = participants.sort((a, b) => {
-                const dateA = new Date(a.joined_at || 0);
-                const dateB = new Date(b.joined_at || 0);
-                return dateB - dateA;
-            });
-            
-            // Find matching user (case-insensitive, trimmed)
-            const currentUser = sortedParticipants.find(p => 
-                p.user.display_name.trim().toLowerCase() === currentUserName.trim().toLowerCase()
-            );
-            
-            if (currentUser) {
-                currentUserId = currentUser.user.id;
-                console.log('Found user ID:', currentUserId);
-                // Update sessionStorage with user ID
-                sessionStorage.setItem('currentSession', JSON.stringify({
-                    code: currentSessionCode,
-                    userId: currentUserId,
-                    displayName: currentUserName
-                }));
-            } else {
-                console.error('User not found in participants list. Looking for:', currentUserName);
-                console.log('Available participants:', participants.map(p => p.user.display_name));
-            }
-        } catch (error) {
-            console.error('Error fetching user ID from participants:', error);
-        }
+  }
+
+  function formatTimestamp(ms) {
+    const seconds = Math.floor((Date.now() - ms) / 1000);
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds} secs ago`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} mins ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hours ago`;
+    return new Date(ms).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function createReplyHtml(reply) {
+    const displayTime = formatTimestamp(reply.timestamp);
+    let tagHtml = '';
+    if (reply.isApproved) {
+      tagHtml = `<span class="tag tag-approved">APPROVED ANSWER</span>`;
     }
 
-    // --- Initialization ---
-    loadQuestions();
-    startQuestionsPolling();
-    
-    // 2. Event Listeners (Delegated & Direct)
-    postButton.addEventListener('click', handlePostQuestion);
-    
-    // Event Delegation for all actions within the discussion list (Vote, Reply Post, Toggles)
-    discussionList.addEventListener('click', (e) => {
-        // Prevent default action for link clicks
-        e.preventDefault(); 
-        
-        // 1. Check for VOTE action (Highest priority)
-        const voteAction = e.target.closest('.vote-action');
-        if (voteAction && !e.target.closest('.card-footer')) {
-            handleVote(e, voteAction);
-            return; 
-        }
+    return `
+            <div class="nested-reply-wrapper">
+                <div class="nested-reply">
+                    <div class="card-header">
+                        <div class="author-row">
+                            <span class="author-name">${reply.author}</span>
+                            ${tagHtml}
+                        </div>
+                    </div>
+                    <div class="timestamp">${displayTime}</div>
+                    <div class="reply-text">
+                        ${reply.text}
+                    </div>
+                </div>
+            </div>
+        `;
+  }
 
-        // 2. Check for REPLY SUBMISSION button click
-        const replyPostButton = e.target.closest('.reply-post-button');
-        if (replyPostButton) {
-            handlePostReply(e);
-            return;
-        }
+  function createQuestionCard(question) {
+    const displayTime = formatTimestamp(question.timestamp);
+    const tag = getQuestionTag(question);
+    const dataId = question.id;
 
-        // 3. Check for SHOW/HIDE Replies TOGGLE click (The count link)
-        const repliesToggle = e.target.closest('.replies-toggle'); 
-        if (repliesToggle) {
-            handleRepliesToggle(e);
-            return;
-        }
+    const votedClass = '';
+    const iconSymbol = 'thumb_up';
 
-        // 4. Check for REPLY INPUT BOX TOGGLE click (The "Reply" text link)
-        const replyToggleLink = e.target.closest('.reply-action');
-        if (replyToggleLink) {
-            handleReplyToggle(e);
-            return;
-        }
-    });
-
-    // =======================================================
-    // --- CORE LOGIC FUNCTIONS ---
-    // =======================================================
-    
-    async function handlePostQuestion() {
-        console.log('=== POST BUTTON CLICKED ===');
-        console.log('Session Code:', currentSessionCode);
-        console.log('User ID (before check):', currentUserId);
-        console.log('User Name:', currentUserName);
-        console.log('SessionStorage:', sessionStorage.getItem('currentSession'));
-        
-        const questionText = questionInput.value.trim();
-
-        if (!questionText) {
-            questionInput.placeholder = "Please type your question here!";
-            questionInput.focus();
-            return;
-        }
-        
-        // Check if we have user ID, if not try to fetch it
-        if (!currentUserId) {
-            console.log('User ID not available, attempting to fetch...');
-            
-            // If no username, ask user to identify themselves
-            if (!currentUserName) {
-                const displayName = prompt('Please enter your display name to continue:');
-                if (!displayName || !displayName.trim()) {
-                    alert('Display name is required to post questions.');
-                    return;
-                }
-                currentUserName = displayName.trim();
-            }
-            
-            await fetchUserIdFromParticipants();
-            console.log('User ID (after fetch):', currentUserId);
-            
-            if (!currentUserId) {
-                console.error('FAILED: Could not get user ID');
-                alert('Unable to find your user account. Please make sure you joined the session properly.');
-                return;
-            }
-        }
-
-        console.log('Proceeding with post - User ID:', currentUserId);
-        
-        // Disable button during submission
-        postButton.disabled = true;
-        const originalText = postButton.textContent;
-        postButton.textContent = 'Posting...';
-        
-        try {
-            console.log('Calling submitQuestion API...');
-            await submitQuestion(currentSessionCode, currentUserId, questionText);
-            console.log('Question posted successfully');
-            
-            // Clear input and reset toggle
-            questionInput.value = '';
-            anonToggle.checked = false;
-            
-            // Reload questions to show the new one
-            await loadQuestions();
-            
-        } catch (error) {
-            console.error('Failed to post question:', error);
-            alert('Failed to post question: ' + error.message);
-        } finally {
-            postButton.disabled = false;
-            postButton.textContent = originalText;
-        }
+    let repliesHtml = '';
+    if (question.replies && question.replies.length > 0) {
+      repliesHtml = [...question.replies].reverse().map(createReplyHtml).join('');
     }
 
-    // --- Vote/Like Logic (Coming Soon) ---
-    function handleVote(e, voteActionElement) {
-        e.preventDefault();
-        alert('Voting feature coming soon!');
-    }
-    
-    // --- Reply Input Toggle Logic (Coming Soon) ---
-    function handleReplyToggle(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        alert('Reply feature coming soon!');
-    }
-
-    // --- Reply Post Logic (Coming Soon) ---
-    function handlePostReply(e) {
-        e.preventDefault(); 
-        e.stopPropagation();
-        alert('Reply feature coming soon!');
-    }
-    
-    // --- Replies Container Toggle Logic (Coming Soon) ---
-    function handleRepliesToggle(e) {
-        e.preventDefault();
-        alert('Replies feature coming soon!');
-    }
-
-    // =======================================================
-    // --- RENDERING & HELPER FUNCTIONS ---
-    // =======================================================
-    
-    function renderQuestions(questions) {
-        discussionList.innerHTML = ''; 
-
-        if (questions.length === 0) {
-            if (emptyFeed) {
-                discussionList.appendChild(emptyFeed);
-                emptyFeed.style.display = 'flex';
-            }
-        } else {
-            questions.forEach(question => {
-                const cardHTML = createQuestionCard(question);
-                discussionList.insertAdjacentHTML('beforeend', cardHTML);
-            });
-        }
-    }
-    
-    async function loadQuestions() {
-        try {
-            const questions = await getSessionQuestions(currentSessionCode);
-            renderQuestions(questions);
-        } catch (error) {
-            console.error('Failed to load questions:', error);
-        }
-    }
-    
-    function startQuestionsPolling() {
-        // Clear any existing interval
-        if (questionsPollInterval) {
-            clearInterval(questionsPollInterval);
-        }
-        
-        // Poll every 5 seconds
-        questionsPollInterval = setInterval(async () => {
-            await loadQuestions();
-        }, 5000);
-    }
-    
-    // Clean up polling when page unloads
-    window.addEventListener('beforeunload', () => {
-        if (questionsPollInterval) {
-            clearInterval(questionsPollInterval);
-        }
-    });
-    
-    function formatTimestampFromDate(date) {
-        const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-        if (seconds < 5) return 'just now';
-        if (seconds < 60) return `${seconds} secs ago`;
-        const minutes = Math.floor(seconds / 60);
-        if (minutes < 60) return `${minutes} mins ago`;
-        const hours = Math.floor(minutes / 60);
-        if (hours < 24) return `${hours} hours ago`;
-        return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-    }
-    
-    function getQuestionTagFromAPI(question) {
-        if (question.status === 'answered') {
-            return { text: "ANSWERED", className: "tag-answered" };
-        }
-        
-        // Check if question is new (created within last 5 minutes)
-        const createdDate = new Date(question.created_at);
-        const ageMs = Date.now() - createdDate.getTime();
-        if (ageMs < NEW_QUESTION_CUTOFF_MS) {
-            return { text: "NEW", className: "tag-new" };
-        }
-        
-        return { text: "PENDING", className: "tag-old" };
-    }
-
-    function createQuestionCard(question) {
-        // Convert API timestamp to display format
-        const createdDate = new Date(question.created_at);
-        const displayTime = formatTimestampFromDate(createdDate);
-        
-        // Get tag based on question status
-        const tag = getQuestionTagFromAPI(question); 
-        const dataId = question.id; 
-        
-        // Author display - show "Anonymous" if no author
-        const authorName = question.author ? question.author.display_name : "Anonymous";
-        
-        const votedClass = ''; 
-        const iconSymbol = 'thumb_up'; 
-        
-        // Note: Replies/voting will be implemented later - for now just show questions
-        const replyInputHtml = `
+    const replyInputHtml = `
             <div class="reply-input-wrapper" style="display: none;">
                 <input type="text" placeholder="Add a reply..." class="reply-input">
                 <button class="reply-post-button" data-question-id="${dataId}">Post</button>
             </div>
         `;
-        
-        const toggleState = 'false'; 
-        const arrowIcon = 'keyboard_arrow_down';
 
-        return `
+    const repliesExist = question.replies.length > 0;
+    const toggleState = 'false';
+    const arrowIcon = repliesExist ? 'keyboard_arrow_up' : 'keyboard_arrow_down';
+
+    return `
             <div class="question-card" data-id="${dataId}">
               <div class="card-header">
                 <div class="author-row">
-                  <span class="author-name">${escapeHtml(authorName)}</span>
+                  <span class="author-name">${question.author}</span>
                   <span class="tag ${tag.className}">${tag.text}</span>
                 </div>
                 <div class="vote-action ${votedClass}">
                   <span class="material-symbols-outlined vote-icon">${iconSymbol}</span>
-                  <span class="count">${question.likes}</span>
+                  <span class="count">${question.votes}</span>
                 </div>
               </div>
               <div class="timestamp">${displayTime}</div>
               
               <div class="question-bubble">
-                ${escapeHtml(question.body)}
+                ${question.text}
               </div>
               
               <div class="card-footer">
@@ -1068,13 +946,376 @@ document.addEventListener('DOMContentLoaded', () => {
                   <span class="reply-action action-link"><span class="material-symbols-outlined icon-sm">reply</span> Reply</span>
                 </div>
                 <div class="footer-right replies-toggle" data-replies-open="${toggleState}">
-                  <span class="action-link">Show Reply (0) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span></span>
+                  <span class="action-link">Show Reply (${question.replies.length}) <span class="material-symbols-outlined icon-sm">${arrowIcon}</span></span>
                 </div>
               </div>
               ${replyInputHtml}
               <div class="replies-container">
+                  ${repliesHtml}
               </div>
             </div>
         `;
-    }
+  }
 });
+
+// =======================================================
+// CLASS DISCUSSION PAGE INITIALIZATION (Host & Student)
+// =======================================================
+
+/**
+ * Initialize class discussion pages (both host and student views)
+ * Loads session data from API and sets up real-time polling
+ */
+async function initializeClassDiscussion() {
+  // Get session code from URL query parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const sessionCode = urlParams.get('code');
+  
+  if (!sessionCode) {
+    console.error('No session code provided');
+    showError('Session code is missing. Please use a valid session link.');
+    return;
+  }
+  
+  try {
+    // Load initial data
+    await loadSessionData(sessionCode);
+    
+    // Set up auto-refresh polling
+    startParticipantCountPolling(sessionCode);
+    startQuestionsPolling(sessionCode);
+    
+    // Set up post question handler
+    setupPostQuestionHandler(sessionCode);
+    
+    // Set up sidebar controls (host only)
+    setupSidebarControls();
+    
+  } catch (error) {
+    console.error('Failed to initialize session:', error);
+    showError(`Failed to load session: ${error.message}`);
+  }
+}
+
+/**
+ * Load all session data from API
+ */
+async function loadSessionData(sessionCode) {
+  try {
+    // Load session details, participants, and questions in parallel
+    const [session, participants, questions] = await Promise.all([
+      getSessionDetails(sessionCode),
+      getSessionParticipants(sessionCode),
+      getSessionQuestions(sessionCode)
+    ]);
+    
+    // Ensure userId is stored in sessionStorage (fallback if not already set)
+    let userId = sessionStorage.getItem('userId');
+    if (!userId) {
+      // Try to find user by display name from sessionStorage
+      const storedDisplayName = sessionStorage.getItem('displayName');
+      
+      if (storedDisplayName) {
+        const userParticipant = participants.find(p => 
+          p.user && p.user.display_name.toLowerCase().trim() === storedDisplayName.toLowerCase().trim()
+        );
+        if (userParticipant && userParticipant.user) {
+          sessionStorage.setItem('userId', userParticipant.user.id.toString());
+        }
+      } else {
+        // Check if user is the host
+        const hostParticipant = participants.find(p => p.role === 'host');
+        if (hostParticipant && hostParticipant.user) {
+          // Check if this might be the current user (from createdSession storage)
+          const createdSession = sessionStorage.getItem('createdSession');
+          if (createdSession) {
+            const parsedSession = JSON.parse(createdSession);
+            if (parsedSession.code === sessionCode) {
+              sessionStorage.setItem('userId', hostParticipant.user.id.toString());
+              sessionStorage.setItem('displayName', hostParticipant.user.display_name);
+            }
+          }
+        }
+      }
+    }
+    
+    // Update UI with loaded data
+    updateSessionHeader(session, participants);
+    updateParticipantList(participants);
+    updateQuestionsList(questions);
+    updateSidebarStats(questions);
+    
+  } catch (error) {
+    throw new Error(`Failed to load session data: ${error.message}`);
+  }
+}
+
+/**
+ * Update session header with title, host name, and student count
+ */
+function updateSessionHeader(session, participants) {
+  const sessionTitleDisplay = document.getElementById('session-title-display');
+  const hostNameDisplay = document.getElementById('host-name-display');
+  const studentCountDisplay = document.getElementById('student-count-display');
+  
+  if (sessionTitleDisplay) {
+    sessionTitleDisplay.textContent = session.title;
+  }
+  
+  if (hostNameDisplay) {
+    hostNameDisplay.textContent = `Host: ${session.host.display_name}`;
+  }
+  
+  if (studentCountDisplay) {
+    // Count non-host participants
+    const studentCount = participants.filter(p => p.role !== 'host').length;
+    studentCountDisplay.textContent = `${studentCount} Student${studentCount !== 1 ? 's' : ''} Online`;
+  }
+}
+
+/**
+ * Update participant list in sidebar (host view only)
+ */
+function updateParticipantList(participants) {
+  const container = document.getElementById('participant-list-container');
+  if (!container) return; // Not on host page
+  
+  if (participants.length === 0) {
+    container.innerHTML = '<div class="empty-state">No participants yet</div>';
+    return;
+  }
+  
+  // Sort to show host first, then alphabetically
+  const sortedParticipants = [...participants].sort((a, b) => {
+    if (a.role === 'host' && b.role !== 'host') return -1;
+    if (a.role !== 'host' && b.role === 'host') return 1;
+    return a.user.display_name.localeCompare(b.user.display_name);
+  });
+  
+  const participantHTML = sortedParticipants.map(participant => {
+    const isHost = participant.role === 'host';
+    const nameDisplay = isHost 
+      ? `${escapeHtml(participant.user.display_name)} (Host)`
+      : escapeHtml(participant.user.display_name);
+    const styleClass = isHost ? 'style="font-weight: bold; color: #1372BA;"' : '';
+    
+    return `<div class="participant-name-item" ${styleClass}>${nameDisplay}</div>`;
+  }).join('');
+  
+  container.innerHTML = participantHTML;
+}
+
+/**
+ * Update questions list in discussion feed
+ */
+function updateQuestionsList(questions) {
+  const discussionList = document.querySelector('.discussion-list');
+  if (!discussionList) return;
+  
+  // Remove empty feed message if it exists
+  const emptyFeed = discussionList.querySelector('.empty-feed');
+  
+  if (questions.length === 0) {
+    if (!emptyFeed) {
+      discussionList.innerHTML = `
+        <div class="empty-feed">
+          <span class="material-symbols-outlined large-icon">chat</span>
+          <p><strong>Be the first to ask a question!</strong></p>
+          <p>Your questions will appear here once you hit "Post."</p>
+        </div>
+      `;
+    }
+    return;
+  }
+  
+  // Clear empty feed message
+  if (emptyFeed) {
+    emptyFeed.remove();
+  }
+  
+  // Render questions (newest first)
+  const questionHTML = questions.map(question => {
+    const authorName = question.author 
+      ? escapeHtml(question.author.display_name)
+      : 'Anonymous';
+    
+    const timestamp = new Date(question.created_at).toLocaleString();
+    const isAnswered = question.status === 'answered';
+    
+    return `
+      <div class="question-card ${isAnswered ? 'answered' : ''}">
+        <div class="question-header">
+          <span class="question-author">${authorName}</span>
+          <span class="question-timestamp">${timestamp}</span>
+        </div>
+        <div class="question-body">${escapeHtml(question.body)}</div>
+        <div class="question-actions">
+          ${isAnswered ? '<span class="answered-badge">Answered</span>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  discussionList.innerHTML = questionHTML;
+}
+
+/**
+ * Update sidebar stats (host view only)
+ */
+function updateSidebarStats(questions) {
+  const newQuestionsCount = document.getElementById('new-questions-count');
+  
+  if (!newQuestionsCount) return; // Not on host page
+  
+  // Count all questions
+  const totalQuestions = questions.length;
+  
+  if (newQuestionsCount) {
+    newQuestionsCount.textContent = totalQuestions;
+  }
+}
+
+/**
+ * Start polling for participant count updates
+ */
+function startParticipantCountPolling(sessionCode) {
+  setInterval(async () => {
+    try {
+      const participants = await getSessionParticipants(sessionCode);
+      
+      // Update student count in header
+      const studentCountDisplay = document.getElementById('student-count-display');
+      if (studentCountDisplay) {
+        const studentCount = participants.filter(p => p.role !== 'host').length;
+        studentCountDisplay.textContent = `${studentCount} Student${studentCount !== 1 ? 's' : ''} Online`;
+      }
+      
+      // Update participant list (host view only)
+      updateParticipantList(participants);
+      
+    } catch (error) {
+      console.error('Failed to refresh participants:', error);
+    }
+  }, 5000); // Poll every 5 seconds
+}
+
+/**
+ * Start polling for question updates
+ */
+function startQuestionsPolling(sessionCode) {
+  setInterval(async () => {
+    try {
+      const questions = await getSessionQuestions(sessionCode);
+      updateQuestionsList(questions);
+      updateSidebarStats(questions);
+    } catch (error) {
+      console.error('Failed to refresh questions:', error);
+    }
+  }, 5000); // Poll every 5 seconds
+}
+
+/**
+ * Set up post question button handler
+ */
+function setupPostQuestionHandler(sessionCode) {
+  const postButton = document.querySelector('.post-button');
+  const questionInput = document.querySelector('.input-area input[type="text"]');
+  const anonToggle = document.querySelector('.switch input[type="checkbox"]');
+  
+  if (!postButton || !questionInput) return;
+  
+  postButton.addEventListener('click', async () => {
+    const questionText = questionInput.value.trim();
+    
+    if (!questionText) {
+      alert('Please enter a question');
+      return;
+    }
+    
+    try {
+      // Get user ID from session storage
+      let userId = sessionStorage.getItem('userId');
+      
+      // If anonymous posting is enabled, we could omit userId
+      // For now, we require a user ID
+      if (!userId) {
+        alert('User ID not found. Please rejoin the session.');
+        return;
+      }
+      
+      // Submit question
+      postButton.disabled = true;
+      await submitQuestion(sessionCode, userId, questionText);
+      
+      // Clear input
+      questionInput.value = '';
+      if (anonToggle) anonToggle.checked = false;
+      
+      // Refresh questions immediately
+      const questions = await getSessionQuestions(sessionCode);
+      updateQuestionsList(questions);
+      updateSidebarStats(questions);
+      
+    } catch (error) {
+      console.error('Failed to post question:', error);
+      alert(`Failed to post question: ${error.message}`);
+    } finally {
+      postButton.disabled = false;
+    }
+  });
+  
+  // Also allow Enter key to submit
+  questionInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      postButton.click();
+    }
+  });
+}
+
+/**
+ * Set up sidebar controls (host view only)
+ */
+function setupSidebarControls() {
+  const endSessionButton = document.querySelector('.end-session-button');
+  
+  if (endSessionButton) {
+    endSessionButton.addEventListener('click', () => {
+      const confirmed = confirm('Are you sure you want to end this session?');
+      if (confirmed) {
+        // TODO: Implement end session API call
+        alert('End session functionality coming soon');
+      }
+    });
+  }
+}
+
+/**
+ * Show error message to user
+ */
+function showError(message) {
+  const container = document.querySelector('.container');
+  if (container) {
+    container.innerHTML = `
+      <div style="padding: 2rem; text-align: center;">
+        <h2 style="color: #d32f2f;">Error</h2>
+        <p>${escapeHtml(message)}</p>
+        <a href="/static/index.html" class="button">Return to Home</a>
+      </div>
+    `;
+  }
+}
+
+// Auto-initialize class discussion pages
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    const path = window.location.pathname;
+    if (path.includes('class-discussion-host.html') || path.includes('class-discussion-student.html')) {
+      initializeClassDiscussion();
+    }
+  });
+} else {
+  const path = window.location.pathname;
+  if (path.includes('class-discussion-host.html') || path.includes('class-discussion-student.html')) {
+    initializeClassDiscussion();
+  }
+}
