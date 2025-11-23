@@ -13,19 +13,27 @@
 </head>
 
 <body>
-  <div class="container">
+  <div class="index-container">
 
     <div class="index-logo">
       <img src="/static/images/white_logo_icon.png" alt="JCU Icon" class="jcu-main-logo">
       <h1 class="learnjcu-heading">LearnJCU<br>Interactive</h1>
     </div>
+
     <div class="session-selection">
-    <button onclick="window.location.href='/static/start.html'" class="session-button start-session">Start Session</button>
-<button onclick="window.location.href='/static/join.html'" class="session-button join-session">Join Session</button>
+      <button onclick="window.location.href='/static/start.html'" class="session-button start-session">Start Session</button>
+      <button onclick="window.location.href='/static/join.html'" class="session-button join-session">Join Session</button>
     </div>
+    
     <footer>
       <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
     </footer>
+
+    <!-- Load the same JS stack as index -->
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/components.js"></script>
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/ui.js"></script>
 
   </div>
 </body>
