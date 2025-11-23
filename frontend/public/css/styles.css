@@ -9,6 +9,7 @@
    Layout & Base Styles
    ============================================================ */
 
+/* Reset default spacing and borders for consistent rendering across browsers */
 body,
 header,
 nav,
@@ -23,6 +24,7 @@ ul {
   border: 0;
 }
 
+/* Full-page flex layout with centered content and background image */
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
@@ -41,6 +43,7 @@ body {
 
 }
 
+/* Central wrapper for landing page elements (logo + buttons) */
 .container {
     /* Ensures the logo/buttons are centered horizontally and spaced vertically */
     display: flex;
