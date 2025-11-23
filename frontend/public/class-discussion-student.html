@@ -28,14 +28,13 @@
             </div>
 
             <div class="session-header-info">
-                <div class="session-name">Session Name</div> <!--TO DO: create JS variable-->
-                <div class="lecturer-name">Lecturer name</div> <!--TO DO: create JS variable-->
-                <div class="session-code">Code: <strong id="session-code-display">--</strong></div>
+                <div class="session-name" id="session-title-display">Loading Session...</div> <!--TO DO: create JS variable-->
+                <div class="lecturer-name" id="host-name-display">Loading Host...</div> <!--TO DO: create JS variable-->
             </div>
 
             <div class="student-count">
                 <span class="material-symbols-outlined students">group</span>
-                <span>N Students Online<span> <!--TO DO: create JS variable-->
+                <span id="student-count-display">0 Students Online<span> <!--TO DO: create JS variable-->
             </div>
 
         </header>
@@ -73,23 +72,11 @@
             <script src="/static/js/components.js"></script>
             <script src="/static/js/api.js"></script>
             <script src="/static/js/ui.js"></script>
-            
-            <script>
-              // Display session code from URL query parameter
-              const urlParams = new URLSearchParams(window.location.search);
-              const sessionCode = urlParams.get('code');
-              if (sessionCode) {
-                const codeDisplay = document.getElementById('session-code-display');
-                if (codeDisplay) {
-                  codeDisplay.textContent = sessionCode.toUpperCase();
-                }
-              }
-            </script>
 
         </div>
 
         <footer>
-            <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo compact-logo" onclick="window.location.href='/static/index.html'" style="cursor: pointer;">
+            <img src="/static/images/jcu_full_logo.png" alt="JCU Logo" class="jcu-footer-logo">
         </footer>
 
 
